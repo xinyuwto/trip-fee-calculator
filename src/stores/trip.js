@@ -21,7 +21,14 @@ function loadFromStorage() {
     const raw = localStorage.getItem(TRIP_KEY)
     if (!raw) return null
     const data = JSON.parse(raw)
-    if (!data || !data.members || !Array.isArray(data.expenses)) return null
+    if (!data || typeof data.name !== 'string' || !Array.isArray(data.members) || !Array.isArray(data.expenses)) return null
+    if (data.members.length < 2 || data.members.length > 20) return null
+    for (const m of data.members) {
+      if (!m.id || !m.name) return null
+    }
+    for (const e of data.expenses) {
+      if (!e.id || !e.purpose || !e.amount || !e.payerId || !Array.isArray(e.beneficiaryIds)) return null
+    }
     return data
   } catch {
     return null
@@ -91,6 +98,7 @@ export function useTripStore() {
   }
 
   function exportData() {
+    if (!trip.value) return null
     return JSON.stringify(trip.value, null, 2)
   }
 

@@ -15,8 +15,11 @@ export function calculateSettlement(members, expenses) {
     const payerId = exp.payerId
     paid.set(payerId, (paid.get(payerId) || 0) + exp.amount)
 
-    const share = exp.amount / exp.beneficiaryIds.length
-    for (const bid of exp.beneficiaryIds) {
+    const baseShare = Math.floor(exp.amount / exp.beneficiaryIds.length)
+    const remainder = exp.amount % exp.beneficiaryIds.length
+    for (let i = 0; i < exp.beneficiaryIds.length; i++) {
+      const share = baseShare + (i < remainder ? 1 : 0)
+      const bid = exp.beneficiaryIds[i]
       owed.set(bid, (owed.get(bid) || 0) + share)
     }
   }
@@ -60,8 +63,8 @@ export function calculateSettlement(members, expenses) {
     }
     debtors[di].balance -= amount
     creditors[ci].balance -= amount
-    if (debtors[di].balance < 1) di++
-    if (creditors[ci].balance < 1) ci++
+    if (debtors[di].balance === 0) di++
+    if (creditors[ci].balance === 0) ci++
   }
 
   return { memberBalances, transactions }
