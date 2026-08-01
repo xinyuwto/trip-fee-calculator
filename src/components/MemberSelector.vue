@@ -16,7 +16,7 @@ function toggle(id) {
 }
 
 function toggleAll() {
-  if (props.modelValue.length === props.members.length) {
+  if (props.members.every(m => props.modelValue.includes(m.id))) {
     emit('update:modelValue', [])
   } else {
     emit('update:modelValue', props.members.map(m => m.id))
@@ -44,10 +44,12 @@ function toggleAll() {
 .toggle-all {
   padding: 8px 14px; font-size: 13px; border: 1px dashed #bbb;
   border-radius: 20px; background: transparent; cursor: pointer; color: #666;
+  min-height: 44px;
 }
 .member-chip {
   padding: 8px 16px; font-size: 14px; border: 1px solid #ddd;
   border-radius: 20px; background: #f9f9f9; cursor: pointer; transition: all 0.15s;
+  min-height: 44px;
 }
 .member-chip.selected { background: #1677ff; color: #fff; border-color: #1677ff; }
 </style>

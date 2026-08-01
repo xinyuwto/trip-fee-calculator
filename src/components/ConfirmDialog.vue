@@ -30,6 +30,7 @@ const emit = defineEmits(['confirm', 'cancel'])
 .dialog-actions { display: flex; gap: 12px; justify-content: flex-end; }
 .btn-cancel, .btn-danger {
   padding: 10px 20px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer;
+  min-height: 44px;
 }
 .btn-cancel { background: #f0f0f0; }
 .btn-danger { background: #ff4d4f; color: #fff; }
