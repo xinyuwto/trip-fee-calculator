@@ -35,8 +35,8 @@ function saveToStorage(trip) {
     } else {
       localStorage.setItem(TRIP_KEY, JSON.stringify(trip))
     }
-  } catch {
-    // Silently ignore storage failures (QuotaExceededError, private browsing, etc.)
+  } catch (error) {
+    console.warn('保存失败', error)
   }
 }
 
