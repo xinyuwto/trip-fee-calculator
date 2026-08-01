@@ -29,10 +29,14 @@ function loadFromStorage() {
 }
 
 function saveToStorage(trip) {
-  if (trip === null) {
-    localStorage.removeItem(TRIP_KEY)
-  } else {
-    localStorage.setItem(TRIP_KEY, JSON.stringify(trip))
+  try {
+    if (trip === null) {
+      localStorage.removeItem(TRIP_KEY)
+    } else {
+      localStorage.setItem(TRIP_KEY, JSON.stringify(trip))
+    }
+  } catch {
+    // Silently ignore storage failures (QuotaExceededError, private browsing, etc.)
   }
 }
 
@@ -72,8 +76,9 @@ export function useTripStore() {
     if (!trip.value) return
     const idx = trip.value.expenses.findIndex(e => e.id === id)
     if (idx === -1) return
-    if (updates.amount !== undefined) updates.amount = Math.round(updates.amount)
-    Object.assign(trip.value.expenses[idx], updates)
+    const roundedUpdates = { ...updates }
+    if (roundedUpdates.amount !== undefined) roundedUpdates.amount = Math.round(roundedUpdates.amount)
+    Object.assign(trip.value.expenses[idx], roundedUpdates)
   }
 
   function removeExpense(id) {
