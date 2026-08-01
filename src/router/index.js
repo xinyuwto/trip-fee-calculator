@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { useTripStore } from '../stores/trip'
 import InitView from '../views/InitView.vue'
 import ExpenseView from '../views/ExpenseView.vue'
 import SettlementView from '../views/SettlementView.vue'
@@ -14,6 +15,17 @@ const routes = [
 const router = createRouter({
   history: createWebHashHistory(),
   routes
+})
+
+router.beforeEach((to) => {
+  const { trip } = useTripStore()
+
+  if (!trip.value && to.name !== 'init') {
+    return { name: 'init' }
+  }
+  if (trip.value && to.name === 'init') {
+    return { name: 'expense' }
+  }
 })
 
 export default router
