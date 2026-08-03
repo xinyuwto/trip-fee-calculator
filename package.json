@@ -1,0 +1,37 @@
+{
+  "name": "trip-fee-calculator",
+  "version": "1.0.0",
+  "description": "collect and calculator trip fee among a group of people",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xinyuwto/trip-fee-calculator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/xinyuwto/trip-fee-calculator/issues"
+  },
+  "homepage": "https://github.com/xinyuwto/trip-fee-calculator#readme",
+  "dependencies": {
+    "vue": "^3.5.40",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.8",
+    "jsdom": "^30.0.1",
+    "vite": "^8.2.0",
+    "vitest": "^4.1.10"
+  }
+}

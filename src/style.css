@@ -1,0 +1,16 @@
+.page {
+  min-height: 100dvh;
+  background: #f7f8fa;
+}
+
+input, select, textarea, button {
+  -webkit-appearance: none;
+  appearance: none;
+  font-family: inherit;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15);
+}
