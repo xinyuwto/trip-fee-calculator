@@ -71,22 +71,27 @@ function handleStart() {
 </template>
 
 <style scoped>
-.init-page { padding: 24px 16px; max-width: 400px; margin: 0 auto; }
-h1 { font-size: 24px; margin-bottom: 4px; }
-.subtitle { color: #888; font-size: 14px; margin-bottom: 24px; }
+.init-page { padding: 24px 16px; max-width: 430px; margin: 0 auto; }
+h1 { font-family: var(--font-title); font-size: 24px; margin-bottom: 4px; }
+.subtitle { color: var(--ink-soft); font-size: 14px; margin-bottom: 24px; }
 .form-group { margin-bottom: 20px; }
-.form-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
-input[type="text"] { width: 100%; padding: 10px 12px; font-size: 16px; border: 1px solid #ddd; border-radius: 8px; }
+.form-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--ink-soft); }
+input[type="text"] {
+  width: 100%; padding: 10px 12px; font-size: 16px;
+  border: 1px solid var(--rule); border-radius: 8px;
+  background: #fffdf3; color: var(--ink); font-family: var(--font-body);
+}
 .counter { display: flex; align-items: center; gap: 16px; }
 .counter button {
-  width: 40px; height: 40px; font-size: 20px; border: 1px solid #ddd;
-  border-radius: 8px; background: #f5f5f5; cursor: pointer;
+  width: 40px; height: 40px; font-size: 20px; border: 1px solid var(--rule);
+  border-radius: 8px; background: #fffdf3; cursor: pointer; color: var(--ink);
 }
 .counter button:disabled { opacity: 0.4; cursor: default; }
-.counter span { font-size: 20px; font-weight: 600; min-width: 30px; text-align: center; }
+.counter span { font-size: 20px; font-weight: 600; min-width: 30px; text-align: center; font-family: var(--font-mono); }
 .member-names { display: flex; flex-direction: column; gap: 8px; }
 .btn-primary {
   width: 100%; padding: 14px; font-size: 18px; font-weight: 600;
-  color: #fff; background: #1677ff; border: none; border-radius: 8px; cursor: pointer;
+  color: #fbf6e8; background: var(--ink); border: none; border-radius: 8px;
+  cursor: pointer; font-family: var(--font-title);
 }
 </style>
