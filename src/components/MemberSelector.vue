@@ -42,14 +42,14 @@ function toggleAll() {
 <style scoped>
 .member-selector { display: flex; flex-wrap: wrap; gap: 8px; }
 .toggle-all {
-  padding: 8px 14px; font-size: 13px; border: 1px dashed #bbb;
-  border-radius: 20px; background: transparent; cursor: pointer; color: #666;
+  padding: 8px 14px; font-size: 13px; border: 1px dashed var(--rule);
+  border-radius: 20px; background: transparent; cursor: pointer; color: var(--ink-soft);
   min-height: 44px;
 }
 .member-chip {
-  padding: 8px 16px; font-size: 14px; border: 1px solid #ddd;
-  border-radius: 20px; background: #f9f9f9; cursor: pointer; transition: all 0.15s;
-  min-height: 44px;
+  padding: 8px 16px; font-size: 14px; border: 1px solid var(--rule);
+  border-radius: 20px; background: #fffdf3; cursor: pointer; transition: all 0.15s;
+  min-height: 44px; color: var(--ink);
 }
-.member-chip.selected { background: #1677ff; color: #fff; border-color: #1677ff; }
+.member-chip.selected { background: var(--ink); color: #fbf6e8; border-color: var(--ink); }
 </style>

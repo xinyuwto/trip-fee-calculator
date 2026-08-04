@@ -35,6 +35,7 @@ const sorted = computed(() =>
         <span>{{ memberName(e.payerId) }} 付 · {{ fmtTime(e.createdAt) }}</span>
         <span class="item-beneficiaries">{{ e.beneficiaryIds.map(memberName).join('、') }}</span>
       </div>
+      <div v-if="e.note" class="item-note">{{ e.note }}</div>
       <div class="item-actions">
         <button @click="emit('edit', e)">修改</button>
         <button class="btn-delete" @click="emit('delete', e)">删除</button>
@@ -45,14 +46,23 @@ const sorted = computed(() =>
 
 <style scoped>
 .expense-list { padding: 16px 0; }
-.expense-list h2 { font-size: 18px; margin-bottom: 12px; }
-.empty { color: #999; font-size: 15px; text-align: center; padding: 32px 0; }
-.expense-item { padding: 12px; background: #fff; border-radius: 8px; margin-bottom: 8px; }
+.expense-list h2 { font-family: var(--font-title); font-size: 18px; margin-bottom: 12px; }
+.empty { color: var(--ink-faint); font-size: 15px; text-align: center; padding: 32px 0; }
+.expense-item {
+  padding: 12px; background: #fffdf3; border-radius: 8px;
+  margin-bottom: 8px; border: 1px solid var(--rule);
+}
 .item-main { display: flex; justify-content: space-between; margin-bottom: 4px; }
 .item-purpose { font-weight: 600; }
-.item-amount { color: #ff4d4f; font-weight: 600; }
-.item-meta { font-size: 13px; color: #888; display: flex; justify-content: space-between; }
+.item-amount { color: var(--vermilion); font-weight: 600; font-family: var(--font-mono); }
+.item-meta { font-size: 13px; color: var(--ink-soft); display: flex; justify-content: space-between; }
 .item-actions { margin-top: 8px; display: flex; gap: 8px; }
-.item-actions button { padding: 6px 14px; font-size: 13px; border: 1px solid #ddd; border-radius: 6px; background: #f9f9f9; cursor: pointer; }
-.item-actions .btn-delete { color: #ff4d4f; border-color: #ffccc7; background: #fff2f0; }
+.item-actions button {
+  padding: 6px 14px; font-size: 13px; border: 1px solid var(--rule);
+  border-radius: 6px; background: #fffdf3; cursor: pointer; color: var(--ink);
+}
+.item-actions .btn-delete {
+  color: var(--vermilion); border-color: rgba(181,75,58,.3); background: rgba(181,75,58,.08);
+}
+.item-note { font-size: 12px; color: var(--ink-faint); margin-top: 4px; }
 </style>
