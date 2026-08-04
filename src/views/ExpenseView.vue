@@ -146,7 +146,7 @@ function handleImport() {
 .header-actions { display: flex; gap: 6px; }
 .header-actions button {
   padding: 6px 12px; font-size: 13px; border: 1px solid var(--rule);
-  border-radius: 6px; background: transparent; cursor: pointer;
+  border-radius: 6px; background: #fffdf3; cursor: pointer;
   color: var(--ink); font-family: var(--font-body);
 }
 .header-actions .btn-settle {
@@ -171,7 +171,7 @@ function handleImport() {
 .dialog p { color: var(--ink-soft); font-size: 14px; margin-bottom: 12px; }
 .dialog textarea {
   width: 100%; padding: 10px; font-size: 14px; border: 1px solid var(--rule);
-  border-radius: 8px; resize: vertical; background: transparent; font-family: var(--font-mono);
+  border-radius: 8px; resize: vertical; background: #fffdf3; font-family: var(--font-mono);
 }
 .dialog-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
 .dialog-actions button { padding: 10px 20px; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; }

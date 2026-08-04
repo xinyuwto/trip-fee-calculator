@@ -88,11 +88,11 @@ function totalExpenses() {
 .page-header h1 { font-family: var(--font-title); font-size: 20px; }
 .btn-back {
   padding: 6px 12px; font-size: 14px; border: 1px solid var(--rule);
-  background: transparent; cursor: pointer; border-radius: 6px;
+  background: #fffdf3; cursor: pointer; border-radius: 6px;
   font-family: var(--font-body); color: var(--ink);
 }
 .summary-card {
-  background: linear-gradient(180deg, var(--paper-2), var(--paper));
+  background: linear-gradient(180deg, #fbf6e8, var(--paper));
   border: 1px solid var(--rule); border-radius: 10px;
   padding: 16px; margin-bottom: 20px; box-shadow: var(--shadow);
 }
@@ -100,11 +100,11 @@ function totalExpenses() {
 .summary-row strong { font-family: var(--font-mono); }
 .section { margin-bottom: 24px; }
 .section h2 { font-family: var(--font-title); font-size: 15px; margin-bottom: 12px; letter-spacing: 2px; }
-.flat { color: var(--moss); font-size: 15px; padding: 12px; background: transparent; border-radius: 8px; border: 1px solid var(--rule); }
+.flat { color: var(--moss); font-size: 15px; padding: 12px; background: #fffdf3; border-radius: 8px; border: 1px solid var(--rule); }
 .empty { color: var(--ink-faint); text-align: center; padding: 40px 0; }
 .tx-item {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 14px; background: transparent; border: 1px solid var(--rule);
+  padding: 12px 14px; background: #fffdf3; border: 1px solid var(--rule);
   border-radius: 8px; margin-bottom: 8px;
 }
 .tx-amount { font-family: var(--font-mono); font-weight: 700; font-size: 18px; color: var(--indigo); }
@@ -114,7 +114,7 @@ function totalExpenses() {
 .arrow { margin: 0 4px; color: var(--ink-faint); }
 .balance-item {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 12px; background: transparent; border: 1px solid var(--rule);
+  padding: 10px 12px; background: #fffdf3; border: 1px solid var(--rule);
   border-radius: 8px; margin-bottom: 6px;
 }
 .balance-name { font-family: var(--font-title); font-weight: 700; font-size: 15px; }
