@@ -364,6 +364,38 @@ describe('analyzeSettlement', () => {
     expect(alice.why.narrativeHint).toBeDefined()
   })
 
+  it('maxCreditorName and maxDebtorName return correct extremes with multiple creditors and debtors', () => {
+    // 4 members: 2 creditors (A+650, B+50), 2 debtors (C-400, D-300)
+    const members4 = [
+      { id: 'A', name: 'Alice' },
+      { id: 'B', name: 'Bob' },
+      { id: 'C', name: 'Charlie' },
+      { id: 'D', name: 'Diana' }
+    ]
+    const expenses4 = [
+      { id: 'e1', purpose: '酒店', amount: 1000, payerId: 'A', beneficiaryIds: ['A', 'B', 'C', 'D'], createdAt: '2026-08-01T12:00:00Z' },
+      { id: 'e2', purpose: '晚餐', amount: 400, payerId: 'B', beneficiaryIds: ['A', 'B', 'C', 'D'], createdAt: '2026-08-01T18:00:00Z' },
+      { id: 'e3', purpose: '咖啡', amount: 100, payerId: 'D', beneficiaryIds: ['C', 'D'], createdAt: '2026-08-01T15:00:00Z' }
+    ]
+    const result = analyzeSettlement(members4, expenses4)
+    // Verify balances first
+    const a = result.memberBalances.find(b => b.memberId === 'A')
+    const b = result.memberBalances.find(b => b.memberId === 'B')
+    const c = result.memberBalances.find(b => b.memberId === 'C')
+    const d = result.memberBalances.find(b => b.memberId === 'D')
+    expect(a.balance).toBe(650)
+    expect(b.balance).toBe(50)
+    expect(c.balance).toBe(-400)
+    expect(d.balance).toBe(-300)
+    // All members should have the same maxCreditorName / maxDebtorName
+    const alice = result.members.find(m => m.memberId === 'A')
+    const charlie = result.members.find(m => m.memberId === 'C')
+    expect(alice.why.maxCreditorName).toBe('Alice')
+    expect(alice.why.maxDebtorName).toBe('Charlie')
+    expect(charlie.why.maxCreditorName).toBe('Alice')
+    expect(charlie.why.maxDebtorName).toBe('Charlie')
+  })
+
   it('includes time field in bill details for display', () => {
     const result = analyzeSettlement(members, expenses)
     const bob = result.members.find(m => m.memberId === 'B')

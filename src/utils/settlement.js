@@ -211,11 +211,11 @@ export function analyzeSettlement(members, expenses) {
       maxCreditorName: settlement.memberBalances
         .filter(b => b.balance > 0)
         .sort((a, b) => b.balance - a.balance)
-        .pop()?.memberName || '',
+        [0]?.memberName || '',
       maxDebtorName: settlement.memberBalances
         .filter(b => b.balance < 0)
         .sort((a, b) => a.balance - b.balance)
-        .pop()?.memberName || ''
+        [0]?.memberName || ''
     }
     why.narrativeHint = why.isNetCreditor
       ? why.totalPaidForOthers > why.totalOthersPaidForMe * 2 ? 'major_creditor' : 'creditor'
