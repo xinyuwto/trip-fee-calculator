@@ -1,5 +1,40 @@
 import { describe, it, expect } from 'vitest'
-import { calculateSettlement } from '../settlement'
+import { calculateSettlement, shareOf } from '../settlement'
+
+describe('shareOf', () => {
+  it('returns 0 when member is not a beneficiary', () => {
+    const exp = { amount: 100, beneficiaryIds: ['A', 'B'] }
+    expect(shareOf(exp, 'C')).toBe(0)
+  })
+
+  it('evenly divides when amount is multiple of beneficiary count', () => {
+    const exp = { amount: 300, beneficiaryIds: ['A', 'B', 'C'] }
+    expect(shareOf(exp, 'A')).toBe(100)
+    expect(shareOf(exp, 'B')).toBe(100)
+    expect(shareOf(exp, 'C')).toBe(100)
+  })
+
+  it('distributes remainder to first N beneficiaries', () => {
+    // 100 / 3 = 33 remainder 1 → first gets 34, rest 33
+    const exp = { amount: 100, beneficiaryIds: ['A', 'B', 'C'] }
+    expect(shareOf(exp, 'A')).toBe(34)
+    expect(shareOf(exp, 'B')).toBe(33)
+    expect(shareOf(exp, 'C')).toBe(33)
+  })
+
+  it('distributes remainder of 2 across first 2 beneficiaries', () => {
+    // 101 / 3 = 33 remainder 2 → first two get 34, last 33
+    const exp = { amount: 101, beneficiaryIds: ['A', 'B', 'C'] }
+    expect(shareOf(exp, 'A')).toBe(34)
+    expect(shareOf(exp, 'B')).toBe(34)
+    expect(shareOf(exp, 'C')).toBe(33)
+  })
+
+  it('handles single beneficiary (no remainder)', () => {
+    const exp = { amount: 500, beneficiaryIds: ['X'] }
+    expect(shareOf(exp, 'X')).toBe(500)
+  })
+})
 
 const members = [
   { id: '1', name: '张三' },
@@ -68,6 +103,26 @@ describe('calculateSettlement', () => {
     expect(result.transactions[0].fromId).toBe('2')
     expect(result.transactions[0].toId).toBe('1')
     expect(result.transactions[0].amount).toBe(75)
+  })
+
+  it('transactions sorted by payer name', () => {
+    const members5 = [
+      { id: '1', name: '陈五' },
+      { id: '2', name: '张三' },
+      { id: '3', name: '李四' },
+      { id: '4', name: '王二' }
+    ]
+    const expenses = [
+      { amount: 400, payerId: '1', beneficiaryIds: ['1', '2', '3', '4'] }
+    ]
+    const result = calculateSettlement(members5, expenses)
+    // 陈五 paid 400 owed 100 → +300, others -100 each
+    // transactions: 张三→陈五, 李四→陈五, 王二→陈五
+    // sorted by fromName: 李四, 王二, 张三 (pinyin order)
+    expect(result.transactions).toHaveLength(3)
+    const names = result.transactions.map(t => t.fromName)
+    const sorted = [...names].sort((a, b) => a.localeCompare(b.toLocaleLowerCase(), 'zh-CN'))
+    expect(names).toEqual(sorted)
   })
 
   it('minimum transactions with cross payments', () => {
@@ -197,21 +252,22 @@ describe('calculateSettlement — 5人复杂净额结算场景', () => {
     expect(totalTransferred).toBe(totalDebt)
   })
 
-  it('贪心算法给出最优转账方案：E→A、D→A、C→A、C→B', () => {
+  it('贪心算法给出最优转账方案：C→A、C→B、D→A、E→A', () => {
     const result = calculateSettlement(members, expenses)
     const normalized = result.transactions.map(t => `${t.fromId}->${t.toId}:${t.amount}`)
-    // 期望推导：
+    // 期望推导（按转出人 fromName 排序，zh-CN 顺序）：
     //   债务人降序：E(22150) > D(18650) > C(18150)
     //   债权人降序：A(48600) > B(10350)
     //   1) E(22150) 对冲 A(48600) → E→A 22150, A 剩 26450
     //   2) D(18650) 对冲 A(26450) → D→A 18650, A 剩 7800
     //   3) C(18150) 对冲 A(7800)  → C→A 7800,  C 剩 10350, A 完
     //   4) C(10350) 对冲 B(10350) → C→B 10350, 双方完
+    // 排序后：C→A(7800)、C→B(10350)、D→A(18650)、E→A(22150)
     expect(normalized).toEqual([
-      'E->A:22150',
-      'D->A:18650',
       'C->A:7800',
-      'C->B:10350'
+      'C->B:10350',
+      'D->A:18650',
+      'E->A:22150'
     ])
   })
 })

@@ -1,4 +1,20 @@
 /**
+ * Calculate a single beneficiary's share of an expense.
+ * Uses integer division with remainder distributed to the first N beneficiaries.
+ *
+ * @param {{amount: number, beneficiaryIds: string[]}} expense
+ * @param {string} memberId
+ * @returns {number} share in cents
+ */
+export function shareOf(expense, memberId) {
+  if (!expense.beneficiaryIds.includes(memberId)) return 0
+  const base = Math.floor(expense.amount / expense.beneficiaryIds.length)
+  const remainder = expense.amount % expense.beneficiaryIds.length
+  const idx = expense.beneficiaryIds.indexOf(memberId)
+  return Math.round(base + (idx < remainder ? 1 : 0))
+}
+
+/**
  * 计算谁欠谁多少钱。
  *
  * @param {Array<{id: string, name: string}>} members
@@ -67,5 +83,5 @@ export function calculateSettlement(members, expenses) {
     if (creditors[ci].balance === 0) ci++
   }
 
-  return { memberBalances, transactions }
+  return { memberBalances, transactions: transactions.sort((a, b) => a.fromName.localeCompare(b.fromName, 'zh-CN')) }
 }
