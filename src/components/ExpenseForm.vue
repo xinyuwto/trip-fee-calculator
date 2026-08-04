@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import MemberSelector from './MemberSelector.vue'
 
-const PURPOSE_OPTIONS = ['正餐', '甜点', '纪念品', '酒店', '机票', '火车', '租车', '交通']
+const PURPOSE_OPTIONS = ['正餐', '甜点', '纪念品', '酒店', '机票', '火车', '租车', '交通', '其他']
 
 const props = defineProps({ members: { type: Array, required: true }, editing: { type: Object, default: null } })
 const emit = defineEmits(['save'])

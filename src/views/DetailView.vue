@@ -62,6 +62,10 @@ function whyText(m) {
 
 <template>
   <div class="stage" v-if="trip">
+    <header class="page-header">
+      <button class="btn-back" @click="router.push('/settlement')">返回</button>
+      <h1>结算依据</h1>
+    </header>
     <div class="receipt-head">
       <div class="rh-top">
         <div>
@@ -222,12 +226,22 @@ function whyText(m) {
       </div>
     </div>
 
-    <button class="btn-back-bottom" @click="router.push('/settlement')">← 返回结算</button>
   </div>
 </template>
 
 <style scoped>
 .stage { max-width: 430px; margin: 0 auto; padding: 18px 16px 80px; }
+
+.page-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 16px; border-bottom: 1px dashed var(--rule); padding-bottom: 12px;
+}
+.page-header h1 { font-family: var(--font-title); font-size: 20px; }
+.btn-back {
+  padding: 6px 14px; font-size: 13px; border: 1px solid var(--rule);
+  border-radius: 6px; background: #fffdf3; cursor: pointer;
+  color: var(--ink); font-family: var(--font-body);
+}
 
 /* receipt head */
 .receipt-head {
@@ -386,11 +400,4 @@ function whyText(m) {
   text-align: center; font-family: var(--font-mono);
 }
 .algo-foot strong { color: var(--ink); font-family: var(--font-title); font-weight: 700; }
-
-.btn-back-bottom {
-  display: block; margin: 24px auto 0; padding: 12px 24px;
-  font-size: 14px; color: var(--ink); background: transparent;
-  border: 1px dashed var(--rule); border-radius: 8px; cursor: pointer;
-  font-family: var(--font-title);
-}
 </style>

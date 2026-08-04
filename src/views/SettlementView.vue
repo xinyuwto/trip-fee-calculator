@@ -31,6 +31,7 @@ function totalExpenses() {
     <header class="page-header">
       <button class="btn-back" @click="router.push('/expense')">返回</button>
       <h1>结算结果</h1>
+      <button class="btn-back" @click="router.push('/detail')">结算依据</button>
     </header>
 
     <div class="summary-card">
@@ -74,7 +75,6 @@ function totalExpenses() {
         </div>
       </section>
 
-      <button class="btn-link" @click="router.push('/detail')">查看计算依据</button>
     </template>
   </div>
 </template>
@@ -85,7 +85,7 @@ function totalExpenses() {
   display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
   border-bottom: 1px dashed var(--rule); padding-bottom: 12px;
 }
-.page-header h1 { font-family: var(--font-title); font-size: 20px; }
+.page-header h1 { font-family: var(--font-title); font-size: 20px; flex: 1; }
 .btn-back {
   padding: 6px 12px; font-size: 14px; border: 1px solid var(--rule);
   background: #fffdf3; cursor: pointer; border-radius: 6px;
@@ -122,9 +122,4 @@ function totalExpenses() {
 .balance-net { font-family: var(--font-mono); font-weight: 700; font-size: 16px; }
 .positive { color: var(--moss); }
 .negative { color: var(--vermilion); }
-.btn-link {
-  width: 100%; padding: 12px; font-size: 15px; color: var(--ink);
-  background: transparent; border: 1px dashed var(--rule); border-radius: 8px;
-  cursor: pointer; font-family: var(--font-title);
-}
 </style>

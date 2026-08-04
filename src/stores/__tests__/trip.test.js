@@ -174,6 +174,34 @@ describe('useTripStore', () => {
     expect(result.success).toBe(true)
   })
 
+  it('addExpense sets toast message on success', () => {
+    const { trip, initTrip, addExpense, toast } = useTripStore()
+    initTrip()
+
+    addExpense({
+      purpose: '午餐',
+      amount: 15000,
+      payerId: trip.value.members[0].id,
+      beneficiaryIds: trip.value.members.map(m => m.id)
+    })
+
+    expect(toast.value.message).toContain('添加')
+    expect(toast.value.id).toBeGreaterThan(0)
+  })
+
+  it('updateExpense sets toast message on success', () => {
+    const { trip, initTrip, addExpense, updateExpense, toast } = useTripStore()
+    initTrip()
+
+    addExpense({ purpose: '午餐', amount: 15000, payerId: trip.value.members[0].id, beneficiaryIds: trip.value.members.map(m => m.id) })
+    const id = trip.value.expenses[0].id
+
+    updateExpense(id, { purpose: '晚餐', amount: 20000 })
+
+    expect(toast.value.message).toContain('修改')
+    expect(toast.value.id).toBeGreaterThan(0)
+  })
+
   it('persists to localStorage', () => {
     const { trip, initTrip } = useTripStore()
     initTrip('持久化测试')

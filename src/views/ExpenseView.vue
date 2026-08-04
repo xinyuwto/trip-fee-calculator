@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTripStore } from '../stores/trip'
 import ExpenseForm from '../components/ExpenseForm.vue'
@@ -7,7 +7,7 @@ import ExpenseList from '../components/ExpenseList.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const router = useRouter()
-const { trip, addExpense, updateExpense, removeExpense, resetTrip, exportData, importData } = useTripStore()
+const { trip, toast, addExpense, updateExpense, removeExpense, resetTrip, exportData, importData } = useTripStore()
 
 if (!trip.value) {
   router.replace('/')
@@ -21,6 +21,14 @@ const showImport = ref(false)
 const importText = ref('')
 const importError = ref('')
 const importMsg = ref('')
+const localToast = ref({ message: '', id: 0 })
+
+watch(() => toast.value.id, (id) => {
+  if (id > 0) {
+    localToast.value = { ...toast.value }
+    setTimeout(() => { localToast.value = { message: '', id: 0 } }, 2000)
+  }
+})
 
 function handleSave(expense) {
   if (expense === null) {
@@ -78,6 +86,9 @@ function handleImport() {
 
 <template>
   <div class="page expense-page" v-if="trip">
+    <Transition name="toast">
+      <div v-if="localToast.id > 0" class="toast">{{ localToast.message }}</div>
+    </Transition>
     <header class="page-header">
       <h1>{{ trip.name }}</h1>
       <div class="header-actions">
@@ -179,4 +190,15 @@ function handleImport() {
 .dialog-actions .btn-primary { background: var(--ink); color: #fbf6e8; }
 .error { color: var(--vermilion); font-size: 13px; margin-top: 6px; }
 .success { color: var(--moss); font-size: 13px; margin-top: 6px; }
+.toast {
+  position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: #fbf6e8; padding: 12px 24px;
+  border-radius: 8px; font-size: 15px; font-family: var(--font-title);
+  z-index: 2000; box-shadow: 0 4px 16px rgba(28,25,23,0.3);
+  pointer-events: none;
+}
+.toast-enter-active { transition: all 0.3s ease; }
+.toast-leave-active { transition: all 0.3s ease; }
+.toast-enter-from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+.toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(-10px); }
 </style>
