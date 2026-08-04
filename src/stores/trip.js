@@ -67,7 +67,7 @@ export function useTripStore() {
     }
   }
 
-  function addExpense({ purpose, amount, payerId, beneficiaryIds, createdAt }) {
+  function addExpense({ purpose, amount, payerId, beneficiaryIds, createdAt, note }) {
     if (!trip.value) return
     trip.value.expenses.push({
       id: uuid(),
@@ -75,6 +75,7 @@ export function useTripStore() {
       amount: Math.round(amount),
       payerId,
       beneficiaryIds,
+      note: note || '',
       createdAt: createdAt || new Date().toISOString()
     })
   }
