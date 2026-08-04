@@ -79,12 +79,12 @@ h1 { font-family: var(--font-title); font-size: 24px; margin-bottom: 4px; }
 input[type="text"] {
   width: 100%; padding: 10px 12px; font-size: 16px;
   border: 1px solid var(--rule); border-radius: 8px;
-  background: #fffdf3; color: var(--ink); font-family: var(--font-body);
+  background: transparent; color: var(--ink); font-family: var(--font-body);
 }
 .counter { display: flex; align-items: center; gap: 16px; }
 .counter button {
   width: 40px; height: 40px; font-size: 20px; border: 1px solid var(--rule);
-  border-radius: 8px; background: #fffdf3; cursor: pointer; color: var(--ink);
+  border-radius: 8px; background: transparent; cursor: pointer; color: var(--ink);
 }
 .counter button:disabled { opacity: 0.4; cursor: default; }
 .counter span { font-size: 20px; font-weight: 600; min-width: 30px; text-align: center; font-family: var(--font-mono); }

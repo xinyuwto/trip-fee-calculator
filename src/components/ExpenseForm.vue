@@ -99,7 +99,7 @@ function handleCancel() {
 
 <style scoped>
 .expense-form {
-  padding: 16px; background: #fffdf3; border-radius: 12px;
+  padding: 16px; background: transparent; border-radius: 12px;
   margin-bottom: 16px; border: 1px solid var(--rule); box-shadow: var(--shadow);
 }
 .expense-form h2 { font-family: var(--font-title); font-size: 18px; margin-bottom: 12px; }

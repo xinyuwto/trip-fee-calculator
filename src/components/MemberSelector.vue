@@ -48,7 +48,7 @@ function toggleAll() {
 }
 .member-chip {
   padding: 8px 16px; font-size: 14px; border: 1px solid var(--rule);
-  border-radius: 20px; background: #fffdf3; cursor: pointer; transition: all 0.15s;
+  border-radius: 20px; background: transparent; cursor: pointer; transition: all 0.15s;
   min-height: 44px; color: var(--ink);
 }
 .member-chip.selected { background: var(--ink); color: #fbf6e8; border-color: var(--ink); }

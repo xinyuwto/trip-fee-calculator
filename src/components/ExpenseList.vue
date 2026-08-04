@@ -49,7 +49,7 @@ const sorted = computed(() =>
 .expense-list h2 { font-family: var(--font-title); font-size: 18px; margin-bottom: 12px; }
 .empty { color: var(--ink-faint); font-size: 15px; text-align: center; padding: 32px 0; }
 .expense-item {
-  padding: 12px; background: #fffdf3; border-radius: 8px;
+  padding: 12px; background: transparent; border-radius: 8px;
   margin-bottom: 8px; border: 1px solid var(--rule);
 }
 .item-main { display: flex; justify-content: space-between; margin-bottom: 4px; }
@@ -59,7 +59,7 @@ const sorted = computed(() =>
 .item-actions { margin-top: 8px; display: flex; gap: 8px; }
 .item-actions button {
   padding: 6px 14px; font-size: 13px; border: 1px solid var(--rule);
-  border-radius: 6px; background: #fffdf3; cursor: pointer; color: var(--ink);
+  border-radius: 6px; background: transparent; cursor: pointer; color: var(--ink);
 }
 .item-actions .btn-delete {
   color: var(--vermilion); border-color: rgba(181,75,58,.3); background: rgba(181,75,58,.08);
