@@ -1,3 +1,10 @@
+<script>
+export function sortBeneficiaryIds(beneficiaryIds, members) {
+  const indexMap = Object.fromEntries(members.map((m, i) => [m.id, i]))
+  return [...beneficiaryIds].sort((a, b) => (indexMap[a] ?? Infinity) - (indexMap[b] ?? Infinity))
+}
+</script>
+
 <script setup>
 import { computed } from 'vue'
 
@@ -20,6 +27,10 @@ function fmtTime(iso) {
 const sorted = computed(() =>
   [...props.expenses].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 )
+
+function beneficiaryNames(expense) {
+  return sortBeneficiaryIds(expense.beneficiaryIds, props.members).map(memberName).join('、')
+}
 </script>
 
 <template>
@@ -32,7 +43,7 @@ const sorted = computed(() =>
         <span class="bill-amount">¥{{ money(e.amount) }}</span>
       </div>
       <div class="bill-meta">{{ memberName(e.payerId) }} 付 · {{ fmtTime(e.createdAt) }}</div>
-      <div class="bill-ben"><span class="lbl">受益</span>{{ e.beneficiaryIds.map(memberName).join('、') }}</div>
+      <div class="bill-ben"><span class="lbl">受益</span>{{ beneficiaryNames(e) }}</div>
       <div v-if="e.note" class="bill-note">{{ e.note }}</div>
       <div class="bill-actions">
         <button class="btn sm" @click="emit('edit', e)">修 改</button>
