@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>计算依据 · 原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="stage">
+  <!-- 票据头 -->
+  <div class="receipt-head">
+    <div class="rh-top">
+      <div>
+        <div class="rh-title">计 算 依 据</div>
+        <div class="rh-sub">DETAIL · 逐笔明细</div>
+      </div>
+      <div class="rh-stamp">16 笔</div>
+    </div>
+    <div class="rh-meta">
+      <span>step 4 / 4</span>
+      <button class="rh-btn">← 返 回</button>
+    </div>
+  </div>
+
+  <!-- 逐笔明细 -->
+  <div class="bill-item">
+    <div class="bill-top"><span class="bill-purpose">零食(回程)</span><span class="bill-amount">¥10.00</span></div>
+    <div class="dl"><span class="k">支 付 人</span><span class="v">B</span></div>
+    <div class="dl"><span class="k">受 益 人</span><span class="v">B、C、D、E</span></div>
+    <div class="dl"><span class="k">人均分摊</span><span class="v">¥2.50 (4人)</span></div>
+    <div class="dl"><span class="k">时　间</span><span class="v">8/2 18:00</span></div>
+  </div>
+
+  <div class="bill-item">
+    <div class="bill-top"><span class="bill-purpose">伴手礼</span><span class="bill-amount">¥40.00</span></div>
+    <div class="dl"><span class="k">支 付 人</span><span class="v">A</span></div>
+    <div class="dl"><span class="k">受 益 人</span><span class="v">A、B、C、D</span></div>
+    <div class="dl"><span class="k">人均分摊</span><span class="v">¥10.00 (4人)</span></div>
+    <div class="dl"><span class="k">时　间</span><span class="v">8/2 17:00</span></div>
+  </div>
+
+  <div class="bill-item">
+    <div class="bill-top"><span class="bill-purpose">矿泉水</span><span class="bill-amount">¥10.00</span></div>
+    <div class="dl"><span class="k">支 付 人</span><span class="v">D</span></div>
+    <div class="dl"><span class="k">受 益 人</span><span class="v">D、E</span></div>
+    <div class="dl"><span class="k">人均分摊</span><span class="v">¥5.00 (2人)</span></div>
+    <div class="dl"><span class="k">时　间</span><span class="v">8/2 11:00</span></div>
+  </div>
+
+  <div class="bill-item">
+    <div class="bill-top"><span class="bill-purpose">饮品</span><span class="bill-amount">¥20.00</span></div>
+    <div class="dl"><span class="k">支 付 人</span><span class="v">D</span></div>
+    <div class="dl"><span class="k">受 益 人</span><span class="v">A、B、C、D、E</span></div>
+    <div class="dl"><span class="k">人均分摊</span><span class="v">¥4.00 (5人)</span></div>
+    <div class="dl"><span class="k">时　间</span><span class="v">8/2 14:00</span></div>
+  </div>
+
+  <div class="bill-item">
+    <div class="bill-top"><span class="bill-purpose">零食</span><span class="bill-amount">¥15.00</span></div>
+    <div class="dl"><span class="k">支 付 人</span><span class="v">C</span></div>
+    <div class="dl"><span class="k">受 益 人</span><span class="v">C、D、E</span></div>
+    <div class="dl"><span class="k">人均分摊</span><span class="v">¥5.00 (3人)</span></div>
+    <div class="dl"><span class="k">时　间</span><span class="v">8/2 16:00</span></div>
+  </div>
+
+  <div class="bill-item">
+    <div class="bill-top"><span class="bill-purpose">咖啡</span><span class="bill-amount">¥30.00</span></div>
+    <div class="dl"><span class="k">支 付 人</span><span class="v">C</span></div>
+    <div class="dl"><span class="k">受 益 人</span><span class="v">C、E</span></div>
+    <div class="dl"><span class="k">人均分摊</span><span class="v">¥15.00 (2人)</span></div>
+    <div class="dl"><span class="k">时　间</span><span class="v">8/2 15:00</span></div>
+  </div>
+
+  <div style="text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);padding:8px 0;">······ 共 16 笔，倒序展示 ······</div>
+
+  <div class="foot-note">
+    <strong>说明</strong><br>
+    逐笔展示支付人 · 受益人 · 人均分摊 · 时间，作为结算依据
+  </div>
+</div>
+</body>
+</html>
