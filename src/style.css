@@ -1,6 +1,5 @@
 .page {
   min-height: 100dvh;
-  background: #f7f8fa;
 }
 
 input, select, textarea, button {
@@ -11,6 +10,6 @@ input, select, textarea, button {
 
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: #1677ff !important;
-  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15);
+  border-color: var(--indigo) !important;
+  box-shadow: 0 0 0 2px rgba(43, 58, 103, 0.12);
 }

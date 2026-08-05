@@ -1,5 +1,40 @@
 import { describe, it, expect } from 'vitest'
-import { calculateSettlement } from '../settlement'
+import { calculateSettlement, shareOf, analyzeSettlement } from '../settlement'
+
+describe('shareOf', () => {
+  it('returns 0 when member is not a beneficiary', () => {
+    const exp = { amount: 100, beneficiaryIds: ['A', 'B'] }
+    expect(shareOf(exp, 'C')).toBe(0)
+  })
+
+  it('evenly divides when amount is multiple of beneficiary count', () => {
+    const exp = { amount: 300, beneficiaryIds: ['A', 'B', 'C'] }
+    expect(shareOf(exp, 'A')).toBe(100)
+    expect(shareOf(exp, 'B')).toBe(100)
+    expect(shareOf(exp, 'C')).toBe(100)
+  })
+
+  it('distributes remainder to first N beneficiaries', () => {
+    // 100 / 3 = 33 remainder 1 → first gets 34, rest 33
+    const exp = { amount: 100, beneficiaryIds: ['A', 'B', 'C'] }
+    expect(shareOf(exp, 'A')).toBe(34)
+    expect(shareOf(exp, 'B')).toBe(33)
+    expect(shareOf(exp, 'C')).toBe(33)
+  })
+
+  it('distributes remainder of 2 across first 2 beneficiaries', () => {
+    // 101 / 3 = 33 remainder 2 → first two get 34, last 33
+    const exp = { amount: 101, beneficiaryIds: ['A', 'B', 'C'] }
+    expect(shareOf(exp, 'A')).toBe(34)
+    expect(shareOf(exp, 'B')).toBe(34)
+    expect(shareOf(exp, 'C')).toBe(33)
+  })
+
+  it('handles single beneficiary (no remainder)', () => {
+    const exp = { amount: 500, beneficiaryIds: ['X'] }
+    expect(shareOf(exp, 'X')).toBe(500)
+  })
+})
 
 const members = [
   { id: '1', name: '张三' },
@@ -68,6 +103,26 @@ describe('calculateSettlement', () => {
     expect(result.transactions[0].fromId).toBe('2')
     expect(result.transactions[0].toId).toBe('1')
     expect(result.transactions[0].amount).toBe(75)
+  })
+
+  it('transactions sorted by payer name', () => {
+    const members5 = [
+      { id: '1', name: '陈五' },
+      { id: '2', name: '张三' },
+      { id: '3', name: '李四' },
+      { id: '4', name: '王二' }
+    ]
+    const expenses = [
+      { amount: 400, payerId: '1', beneficiaryIds: ['1', '2', '3', '4'] }
+    ]
+    const result = calculateSettlement(members5, expenses)
+    // 陈五 paid 400 owed 100 → +300, others -100 each
+    // transactions: 张三→陈五, 李四→陈五, 王二→陈五
+    // sorted by fromName: 李四, 王二, 张三 (pinyin order)
+    expect(result.transactions).toHaveLength(3)
+    const names = result.transactions.map(t => t.fromName)
+    const sorted = [...names].sort((a, b) => a.localeCompare(b.toLocaleLowerCase(), 'zh-CN'))
+    expect(names).toEqual(sorted)
   })
 
   it('minimum transactions with cross payments', () => {
@@ -197,21 +252,163 @@ describe('calculateSettlement — 5人复杂净额结算场景', () => {
     expect(totalTransferred).toBe(totalDebt)
   })
 
-  it('贪心算法给出最优转账方案：E→A、D→A、C→A、C→B', () => {
+  it('贪心算法给出最优转账方案：C→A、C→B、D→A、E→A', () => {
     const result = calculateSettlement(members, expenses)
     const normalized = result.transactions.map(t => `${t.fromId}->${t.toId}:${t.amount}`)
-    // 期望推导：
+    // 期望推导（按转出人 fromName 排序，zh-CN 顺序）：
     //   债务人降序：E(22150) > D(18650) > C(18150)
     //   债权人降序：A(48600) > B(10350)
     //   1) E(22150) 对冲 A(48600) → E→A 22150, A 剩 26450
     //   2) D(18650) 对冲 A(26450) → D→A 18650, A 剩 7800
     //   3) C(18150) 对冲 A(7800)  → C→A 7800,  C 剩 10350, A 完
     //   4) C(10350) 对冲 B(10350) → C→B 10350, 双方完
+    // 排序后：C→A(7800)、C→B(10350)、D→A(18650)、E→A(22150)
     expect(normalized).toEqual([
-      'E->A:22150',
-      'D->A:18650',
       'C->A:7800',
-      'C->B:10350'
+      'C->B:10350',
+      'D->A:18650',
+      'E->A:22150'
     ])
+  })
+})
+
+describe('analyzeSettlement', () => {
+  const members = [
+    { id: 'A', name: 'Alice' },
+    { id: 'B', name: 'Bob' },
+    { id: 'C', name: 'Charlie' }
+  ]
+  const expenses = [
+    { id: 'e1', purpose: '午餐', amount: 300, payerId: 'A', beneficiaryIds: ['A', 'B', 'C'], createdAt: '2026-08-01T12:00:00Z' },
+    { id: 'e2', purpose: '咖啡', amount: 200, payerId: 'B', beneficiaryIds: ['B', 'C'], createdAt: '2026-08-01T15:00:00Z' }
+  ]
+
+  it('returns memberBalances and transactions from calculateSettlement', () => {
+    const result = analyzeSettlement(members, expenses)
+    expect(result.memberBalances).toBeDefined()
+    expect(result.transactions).toBeDefined()
+    expect(result.members).toHaveLength(3)
+  })
+
+  it('computes correct net amounts per member', () => {
+    const result = analyzeSettlement(members, expenses)
+    // A: paid 300, owed 100 (午餐/3人) = 100, balance +200
+    // B: paid 200, owed (午餐 100 + 咖啡 100) = 200, balance 0
+    // C: paid 0, owed (午餐 100 + 咖啡 100) = 200, balance -200
+    const alice = result.members.find(m => m.memberId === 'A')
+    const bob = result.members.find(m => m.memberId === 'B')
+    const charlie = result.members.find(m => m.memberId === 'C')
+    expect(alice.netCard.paid).toBe(300)
+    expect(alice.netCard.owed).toBe(100)
+    expect(alice.netCard.balance).toBe(200)
+    expect(bob.netCard.paid).toBe(200)
+    expect(bob.netCard.owed).toBe(200)
+    expect(bob.netCard.balance).toBe(0)
+    expect(charlie.netCard.paid).toBe(0)
+    expect(charlie.netCard.owed).toBe(200)
+    expect(charlie.netCard.balance).toBe(-200)
+  })
+
+  it('builds task list for each member', () => {
+    const result = analyzeSettlement(members, expenses)
+    const charlie = result.members.find(m => m.memberId === 'C')
+    // C has negative balance, should have outgoing tasks
+    expect(charlie.tasks.length).toBeGreaterThan(0)
+    const task = charlie.tasks[0]
+    expect(task.fromId).toBe('C')
+    expect(task.direction).toBe('out')
+    expect(task.amount).toBeGreaterThan(0)
+  })
+
+  it('builds relations with bill details', () => {
+    const result = analyzeSettlement(members, expenses)
+    const alice = result.members.find(m => m.memberId === 'A')
+    // A paid for B (via e1: 午餐, share 100)
+    const relWithBob = alice.relations.find(r => r.peerId === 'B')
+    expect(relWithBob).toBeDefined()
+    expect(relWithBob.iGave).toBe(100)
+    expect(relWithBob.iPaidForPeer.length).toBeGreaterThan(0)
+    const bill = relWithBob.iPaidForPeer[0]
+    expect(bill.purpose).toBe('午餐')
+    expect(bill.share).toBe(100)
+    expect(bill.totalAmount).toBe(300)
+  })
+
+  it('relations sorted by total flow descending', () => {
+    const members4 = [
+      { id: 'A', name: 'Alice' },
+      { id: 'B', name: 'Bob' },
+      { id: 'C', name: 'Charlie' },
+      { id: 'D', name: 'Diana' }
+    ]
+    const expenses4 = [
+      { id: 'e1', purpose: 'A付全款', amount: 400, payerId: 'A', beneficiaryIds: ['A', 'B', 'C', 'D'], createdAt: '2026-08-01T12:00:00Z' },
+      { id: 'e2', purpose: 'B付少', amount: 200, payerId: 'B', beneficiaryIds: ['B', 'D'], createdAt: '2026-08-01T13:00:00Z' }
+    ]
+    const result = analyzeSettlement(members4, expenses4)
+    const alice = result.members.find(m => m.memberId === 'A')
+    // A's relations: B(100 flow), C(100), D(100+100=200)
+    // 200 > 100, so D should be first
+    const flowAmounts = alice.relations.map(r => r.iGave + r.theyGave)
+    for (let i = 1; i < flowAmounts.length; i++) {
+      expect(flowAmounts[i - 1]).toBeGreaterThanOrEqual(flowAmounts[i])
+    }
+  })
+
+  it('includes why data with narrativeHint', () => {
+    const result = analyzeSettlement(members, expenses)
+    const alice = result.members.find(m => m.memberId === 'A')
+    expect(alice.why).toBeDefined()
+    expect(alice.why.isNetCreditor).toBe(true)
+    expect(alice.why.maxCreditorName).toBeDefined()
+    expect(alice.why.narrativeHint).toBeDefined()
+  })
+
+  it('maxCreditorName and maxDebtorName return correct extremes with multiple creditors and debtors', () => {
+    // 4 members: 2 creditors (A+650, B+50), 2 debtors (C-400, D-300)
+    const members4 = [
+      { id: 'A', name: 'Alice' },
+      { id: 'B', name: 'Bob' },
+      { id: 'C', name: 'Charlie' },
+      { id: 'D', name: 'Diana' }
+    ]
+    const expenses4 = [
+      { id: 'e1', purpose: '酒店', amount: 1000, payerId: 'A', beneficiaryIds: ['A', 'B', 'C', 'D'], createdAt: '2026-08-01T12:00:00Z' },
+      { id: 'e2', purpose: '晚餐', amount: 400, payerId: 'B', beneficiaryIds: ['A', 'B', 'C', 'D'], createdAt: '2026-08-01T18:00:00Z' },
+      { id: 'e3', purpose: '咖啡', amount: 100, payerId: 'D', beneficiaryIds: ['C', 'D'], createdAt: '2026-08-01T15:00:00Z' }
+    ]
+    const result = analyzeSettlement(members4, expenses4)
+    // Verify balances first
+    const a = result.memberBalances.find(b => b.memberId === 'A')
+    const b = result.memberBalances.find(b => b.memberId === 'B')
+    const c = result.memberBalances.find(b => b.memberId === 'C')
+    const d = result.memberBalances.find(b => b.memberId === 'D')
+    expect(a.balance).toBe(650)
+    expect(b.balance).toBe(50)
+    expect(c.balance).toBe(-400)
+    expect(d.balance).toBe(-300)
+    // All members should have the same maxCreditorName / maxDebtorName
+    const alice = result.members.find(m => m.memberId === 'A')
+    const charlie = result.members.find(m => m.memberId === 'C')
+    expect(alice.why.maxCreditorName).toBe('Alice')
+    expect(alice.why.maxDebtorName).toBe('Charlie')
+    expect(charlie.why.maxCreditorName).toBe('Alice')
+    expect(charlie.why.maxDebtorName).toBe('Charlie')
+  })
+
+  it('includes time field in bill details for display', () => {
+    const result = analyzeSettlement(members, expenses)
+    const bob = result.members.find(m => m.memberId === 'B')
+    const aliceRelation = bob.relations.find(r => r.peerId === 'A')
+    const aBills = aliceRelation.peerPaidForMe
+    expect(aBills.length).toBeGreaterThan(0)
+    expect(aBills[0].time).toBeDefined()
+    expect(aBills[0].beneficiaryCount).toBe(3)
+  })
+
+  it('member with zero balance has no tasks', () => {
+    const result = analyzeSettlement(members, expenses)
+    const bob = result.members.find(m => m.memberId === 'B')
+    expect(bob.tasks).toEqual([])
   })
 })

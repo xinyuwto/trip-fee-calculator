@@ -51,6 +51,7 @@ export function useTripStore() {
   if (singleton) return singleton
 
   const trip = ref(loadFromStorage())
+  const toast = ref({ message: '', id: 0 })
 
   watch(trip, (val) => saveToStorage(val), { deep: true })
 
@@ -67,7 +68,7 @@ export function useTripStore() {
     }
   }
 
-  function addExpense({ purpose, amount, payerId, beneficiaryIds, createdAt }) {
+  function addExpense({ purpose, amount, payerId, beneficiaryIds, createdAt, note }) {
     if (!trip.value) return
     trip.value.expenses.push({
       id: uuid(),
@@ -75,8 +76,10 @@ export function useTripStore() {
       amount: Math.round(amount),
       payerId,
       beneficiaryIds,
+      note: note || '',
       createdAt: createdAt || new Date().toISOString()
     })
+    toast.value = { message: '添加成功', id: Date.now() }
   }
 
   function updateExpense(id, updates) {
@@ -86,6 +89,7 @@ export function useTripStore() {
     const roundedUpdates = { ...updates }
     if (roundedUpdates.amount !== undefined) roundedUpdates.amount = Math.round(roundedUpdates.amount)
     Object.assign(trip.value.expenses[idx], roundedUpdates)
+    toast.value = { message: '修改成功', id: Date.now() }
   }
 
   function removeExpense(id) {
@@ -126,6 +130,6 @@ export function useTripStore() {
     }
   }
 
-  singleton = { trip, initTrip, addExpense, updateExpense, removeExpense, resetTrip, exportData, importData }
+  singleton = { trip, toast, initTrip, addExpense, updateExpense, removeExpense, resetTrip, exportData, importData }
   return singleton
 }

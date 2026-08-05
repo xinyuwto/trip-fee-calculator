@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTripStore } from '../stores/trip'
 import ExpenseForm from '../components/ExpenseForm.vue'
@@ -7,7 +7,7 @@ import ExpenseList from '../components/ExpenseList.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const router = useRouter()
-const { trip, addExpense, updateExpense, removeExpense, resetTrip, exportData, importData } = useTripStore()
+const { trip, toast, addExpense, updateExpense, removeExpense, resetTrip, exportData, importData } = useTripStore()
 
 if (!trip.value) {
   router.replace('/')
@@ -21,6 +21,14 @@ const showImport = ref(false)
 const importText = ref('')
 const importError = ref('')
 const importMsg = ref('')
+const localToast = ref({ message: '', id: 0 })
+
+watch(() => toast.value.id, (id) => {
+  if (id > 0) {
+    localToast.value = { ...toast.value }
+    setTimeout(() => { localToast.value = { message: '', id: 0 } }, 2000)
+  }
+})
 
 function handleSave(expense) {
   if (expense === null) {
@@ -78,6 +86,9 @@ function handleImport() {
 
 <template>
   <div class="page expense-page" v-if="trip">
+    <Transition name="toast">
+      <div v-if="localToast.id > 0" class="toast">{{ localToast.message }}</div>
+    </Transition>
     <header class="page-header">
       <h1>{{ trip.name }}</h1>
       <div class="header-actions">
@@ -137,29 +148,57 @@ function handleImport() {
 </template>
 
 <style scoped>
-.expense-page { padding: 16px; max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-header h1 { font-size: 20px; }
+.expense-page { padding: 16px; max-width: 430px; margin: 0 auto; padding-bottom: 80px; }
+.page-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px; border-bottom: 1px dashed var(--rule); padding-bottom: 12px;
+}
+.page-header h1 { font-family: var(--font-title); font-size: 20px; }
 .header-actions { display: flex; gap: 6px; }
 .header-actions button {
-  padding: 6px 12px; font-size: 13px; border: 1px solid #ddd;
-  border-radius: 6px; background: #f9f9f9; cursor: pointer;
+  padding: 6px 12px; font-size: 13px; border: 1px solid var(--rule);
+  border-radius: 6px; background: #fffdf3; cursor: pointer;
+  color: var(--ink); font-family: var(--font-body);
 }
-.header-actions .btn-settle { background: #1677ff; color: #fff; border-color: #1677ff; font-weight: 600; }
+.header-actions .btn-settle {
+  background: var(--ink); color: #fbf6e8; border-color: var(--ink);
+  font-weight: 600;
+}
 .footer-actions { margin-top: 24px; text-align: center; }
-.btn-reset { padding: 10px 24px; color: #999; border: 1px solid #ddd; border-radius: 8px; background: transparent; cursor: pointer; font-size: 14px; }
+.btn-reset {
+  padding: 10px 24px; color: var(--ink-faint); border: 1px solid var(--rule);
+  border-radius: 8px; background: transparent; cursor: pointer; font-size: 14px;
+}
 .overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  position: fixed; inset: 0; background: rgba(28,25,23,0.5);
   display: flex; align-items: center; justify-content: center; z-index: 1000;
 }
-.dialog { background: #fff; border-radius: 12px; padding: 24px; width: 340px; max-width: 90vw; }
-.dialog h3 { margin-bottom: 8px; }
-.dialog p { color: #666; font-size: 14px; margin-bottom: 12px; }
-.dialog textarea { width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ddd; border-radius: 8px; resize: vertical; }
+.dialog {
+  background: var(--paper); border-radius: 12px; padding: 24px;
+  width: 340px; max-width: 90vw; border: 1px solid var(--rule);
+  box-shadow: var(--shadow);
+}
+.dialog h3 { font-family: var(--font-title); margin-bottom: 8px; }
+.dialog p { color: var(--ink-soft); font-size: 14px; margin-bottom: 12px; }
+.dialog textarea {
+  width: 100%; padding: 10px; font-size: 14px; border: 1px solid var(--rule);
+  border-radius: 8px; resize: vertical; background: #fffdf3; font-family: var(--font-mono);
+}
 .dialog-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
 .dialog-actions button { padding: 10px 20px; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; }
-.dialog-actions .btn-cancel { background: #f0f0f0; }
-.dialog-actions .btn-primary { background: #1677ff; color: #fff; }
-.error { color: #ff4d4f; font-size: 13px; margin-top: 6px; }
-.success { color: #52c41a; font-size: 13px; margin-top: 6px; }
+.dialog-actions .btn-cancel { background: var(--paper-2); color: var(--ink); }
+.dialog-actions .btn-primary { background: var(--ink); color: #fbf6e8; }
+.error { color: var(--vermilion); font-size: 13px; margin-top: 6px; }
+.success { color: var(--moss); font-size: 13px; margin-top: 6px; }
+.toast {
+  position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: #fbf6e8; padding: 12px 24px;
+  border-radius: 8px; font-size: 15px; font-family: var(--font-title);
+  z-index: 2000; box-shadow: 0 4px 16px rgba(28,25,23,0.3);
+  pointer-events: none;
+}
+.toast-enter-active { transition: all 0.3s ease; }
+.toast-leave-active { transition: all 0.3s ease; }
+.toast-enter-from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+.toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(-10px); }
 </style>
