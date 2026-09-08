@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>结算结果 · 原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="stage">
+  <!-- 票据头 -->
+  <div class="receipt-head">
+    <div class="rh-top">
+      <div>
+        <div class="rh-title">结 算 结 果</div>
+        <div class="rh-sub">SETTLEMENT · 净额抵消</div>
+      </div>
+      <div class="rh-stamp moss">已对账</div>
+    </div>
+    <div class="rh-meta">
+      <span>step 3 / 4</span>
+      <button class="rh-btn">← 返 回</button>
+    </div>
+  </div>
+
+  <!-- 总览 -->
+  <div class="card">
+    <div class="card-title">总 览</div>
+    <div class="summary-grid">
+      <div class="sum-item"><div class="sum-label">总 支 出</div><div class="sum-val vermilion">¥1075.00</div></div>
+      <div class="sum-item"><div class="sum-label">记 录 条 数</div><div class="sum-val">16</div></div>
+    </div>
+  </div>
+
+  <!-- 转账方案 -->
+  <div class="sec-title"><span class="bar"></span><h2>转 账 方 案</h2><span class="num">4 笔</span><span class="bar"></span></div>
+
+  <div class="tx-item">
+    <div class="tx-parties"><span class="tx-from">E</span><span class="tx-arr">→</span><span class="tx-to">A</span></div>
+    <span class="tx-amount">¥221.50</span>
+  </div>
+  <div class="tx-item">
+    <div class="tx-parties"><span class="tx-from">D</span><span class="tx-arr">→</span><span class="tx-to">A</span></div>
+    <span class="tx-amount">¥186.50</span>
+  </div>
+  <div class="tx-item">
+    <div class="tx-parties"><span class="tx-from">C</span><span class="tx-arr">→</span><span class="tx-to">A</span></div>
+    <span class="tx-amount">¥78.00</span>
+  </div>
+  <div class="tx-item">
+    <div class="tx-parties"><span class="tx-from">C</span><span class="tx-arr">→</span><span class="tx-to">B</span></div>
+    <span class="tx-amount">¥103.50</span>
+  </div>
+
+  <!-- 每人净收支 -->
+  <div class="sec-title"><span class="bar"></span><h2>每 人 净 收 支</h2><span class="num">5 人</span><span class="bar"></span></div>
+
+  <div class="bal-item">
+    <div class="bal-avatar av-A">A</div>
+    <div class="bal-mid"><div class="bal-name">A</div><div class="bal-detail">付 ¥690.00 · 应承担 ¥204.00</div></div>
+    <div class="bal-net pos">+¥486.00</div>
+  </div>
+  <div class="bal-item">
+    <div class="bal-avatar av-B">B</div>
+    <div class="bal-mid"><div class="bal-name">B</div><div class="bal-detail">付 ¥310.00 · 应承担 ¥206.50</div></div>
+    <div class="bal-net pos">+¥103.50</div>
+  </div>
+  <div class="bal-item">
+    <div class="bal-avatar av-C">C</div>
+    <div class="bal-mid"><div class="bal-name">C</div><div class="bal-detail">付 ¥45.00 · 应承担 ¥226.50</div></div>
+    <div class="bal-net neg">−¥181.50</div>
+  </div>
+  <div class="bal-item">
+    <div class="bal-avatar av-D">D</div>
+    <div class="bal-mid"><div class="bal-name">D</div><div class="bal-detail">付 ¥30.00 · 应承担 ¥216.50</div></div>
+    <div class="bal-net neg">−¥186.50</div>
+  </div>
+  <div class="bal-item">
+    <div class="bal-avatar av-E">E</div>
+    <div class="bal-mid"><div class="bal-name">E</div><div class="bal-detail">付 ¥0.00 · 应承担 ¥221.50</div></div>
+    <div class="bal-net neg">−¥221.50</div>
+  </div>
+
+  <!-- 查看依据 -->
+  <button class="btn link" style="margin-top:18px;">查 看 计 算 依 据 →</button>
+
+  <div class="foot-note">
+    <strong>算法</strong><br>
+    净额 = 总支付 − 总应承担 · 债权人与债务人对冲 · 最少转账笔数
+  </div>
+</div>
+</body>
+</html>

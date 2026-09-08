@@ -25,31 +25,25 @@ function toggleAll() {
 </script>
 
 <template>
-  <div class="member-selector">
-    <button class="toggle-all" @click="toggleAll">
-      {{ modelValue.length === members.length ? '取消全选' : '全选' }}
-    </button>
-    <button
+  <div class="chip-group">
+    <span :class="['chip', { on: modelValue.length === members.length }]" @click="toggleAll">全选</span>
+    <span
       v-for="m in members" :key="m.id"
-      :class="['member-chip', { selected: modelValue.includes(m.id) }]"
+      :class="['chip', { on: modelValue.includes(m.id) }]"
       @click="toggle(m.id)"
     >
       {{ m.name }}
-    </button>
+    </span>
   </div>
 </template>
 
 <style scoped>
-.member-selector { display: flex; flex-wrap: wrap; gap: 8px; }
-.toggle-all {
-  padding: 8px 14px; font-size: 13px; border: 1px dashed #bbb;
-  border-radius: 20px; background: transparent; cursor: pointer; color: #666;
-  min-height: 44px;
+.chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 7px 14px; border: 1px solid var(--rule); border-radius: 20px;
+  font-size: 13px; background: #fbf6e8; color: var(--ink-soft); cursor: pointer;
+  font-family: var(--font-body); user-select: none; min-height: 44px;
+  display: flex; align-items: center;
 }
-.member-chip {
-  padding: 8px 16px; font-size: 14px; border: 1px solid #ddd;
-  border-radius: 20px; background: #f9f9f9; cursor: pointer; transition: all 0.15s;
-  min-height: 44px;
-}
-.member-chip.selected { background: #1677ff; color: #fff; border-color: #1677ff; }
+.chip.on { background: var(--ink); color: #fbf6e8; border-color: var(--ink); }
 </style>

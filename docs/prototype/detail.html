@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>结算依据 · 原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f4ecd8;
+    --paper-2:#ece1c4;
+    --ink:#1c1917;
+    --ink-soft:#57534e;
+    --ink-faint:#a8a29e;
+    --rule:#c9b896;
+    --indigo:#2b3a67;
+    --vermilion:#b54b3a;
+    --moss:#4a6b3a;
+    --gold:#a87c2c;
+    --shadow:0 1px 0 rgba(28,25,23,.06), 0 12px 28px -18px rgba(28,25,23,.4);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{background:var(--paper)}
+  body{
+    font-family:"Noto Sans SC",-apple-system,sans-serif;
+    color:var(--ink);
+    min-height:100vh;
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(168,124,44,.06), transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(43,58,103,.05), transparent 45%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.11 0 0 0 0 0.10 0 0 0 0 0.09 0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+  .stage{max-width:430px;margin:0 auto;padding:18px 16px 80px;}
+
+  /* 票据头 */
+  .receipt-head{
+    position:relative;border:1px solid var(--rule);
+    background:linear-gradient(180deg,#fbf6e8,#f4ecd8);
+    padding:20px 18px 16px;border-radius:4px;box-shadow:var(--shadow);
+  }
+  .receipt-head::before,.receipt-head::after{
+    content:"";position:absolute;top:8px;width:4px;height:calc(100% - 16px);
+    background:repeating-linear-gradient(180deg,var(--vermilion) 0 6px,transparent 6px 12px);
+    opacity:.55;
+  }
+  .receipt-head::before{left:6px}
+  .receipt-head::after{right:6px}
+  .rh-top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px dashed var(--rule);padding-bottom:12px;}
+  .rh-title{font-family:"Noto Serif SC",serif;font-weight:900;font-size:22px;letter-spacing:2px}
+  .rh-sub{font-size:11px;color:var(--ink-soft);letter-spacing:1px;margin-top:2px}
+  .rh-stamp{
+    border:1.5px solid var(--vermilion);color:var(--vermilion);
+    font-family:"Noto Serif SC",serif;font-weight:700;font-size:11px;
+    padding:4px 8px;border-radius:3px;transform:rotate(4deg);
+    letter-spacing:1px;opacity:.85;
+  }
+  .rh-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-soft);margin-top:10px;font-family:"IBM Plex Mono",monospace;}
+  .rh-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin-top:14px;border-top:1px solid var(--rule);padding-top:12px;}
+  .rh-sum-item{text-align:center;border-right:1px dashed var(--rule)}
+  .rh-sum-item:last-child{border-right:none}
+  .rh-sum-label{font-size:10px;color:var(--ink-soft);letter-spacing:1px}
+  .rh-sum-val{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:16px;margin-top:2px}
+  .rh-sum-val.small{font-size:14px}
+
+  /* 用户切换 */
+  .tab-row{display:flex;gap:6px;margin-top:18px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;}
+  .tab-row::-webkit-scrollbar{display:none}
+  .tab{flex:1;min-width:0;background:#fffdf3;border:1px solid var(--rule);border-radius:8px;padding:10px 6px;text-align:center;cursor:pointer;transition:all .2s;position:relative;}
+  .tab.active{background:var(--ink);color:#fbf6e8;border-color:var(--ink)}
+  .tab .tab-name{font-family:"Noto Serif SC",serif;font-weight:700;font-size:16px}
+  .tab .tab-tag{font-family:"IBM Plex Mono",monospace;font-size:10px;margin-top:3px;letter-spacing:.5px}
+  .tab.active .tab-name{color:#fbf6e8}
+  .tab .pos{color:var(--moss)}
+  .tab .neg{color:var(--vermilion)}
+  .tab.active .pos,.tab.active .neg{color:inherit;opacity:.85}
+
+  /* 用户视图 */
+  .panel{margin-top:14px;display:none;animation:fade .35s ease}
+  .panel.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .net-card{border:1px solid var(--rule);background:#fbf6e8;border-radius:10px;padding:18px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+  .net-card::after{content:"";position:absolute;right:-30px;top:-30px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(43,58,103,.06),transparent 70%);}
+  .net-label{font-size:11px;color:var(--ink-soft);letter-spacing:2px}
+  .net-name{font-family:"Noto Serif SC",serif;font-weight:900;font-size:28px;margin-top:2px}
+  .net-amount{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:34px;margin-top:8px;letter-spacing:-1px;}
+  .net-amount.pos{color:var(--moss)}
+  .net-amount.neg{color:var(--vermilion)}
+  .net-amount .unit{font-size:14px;font-weight:500;margin-left:4px;opacity:.7}
+  .net-foot{margin-top:10px;padding-top:10px;border-top:1px dashed var(--rule);font-size:11px;color:var(--ink-soft);font-family:"IBM Plex Mono",monospace;display:flex;justify-content:space-between;}
+
+  .task-bar{margin-top:12px;border:1px solid var(--rule);background:#fffdf3;border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;}
+  .task-bar.recv{border-left:3px solid var(--moss)}
+  .task-bar.pay{border-left:3px solid var(--vermilion)}
+  .task-label{font-size:11px;color:var(--ink-soft);letter-spacing:1px}
+  .task-list{margin-top:6px;display:flex;flex-direction:column;gap:4px}
+  .task-item{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:14px}
+  .task-item .arr{color:var(--ink-faint);margin:0 6px}
+  .task-item .who{font-family:"Noto Serif SC",serif;font-weight:700}
+  .task-item .amt.pos{color:var(--moss)}
+  .task-item .amt.neg{color:var(--vermilion)}
+
+  .sec-title{display:flex;align-items:center;gap:10px;margin:22px 4px 12px;}
+  .sec-title .bar{flex:1;height:1px;background:var(--rule)}
+  .sec-title h2{font-family:"Noto Serif SC",serif;font-weight:700;font-size:15px;letter-spacing:2px;color:var(--ink);}
+  .sec-title .num{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);}
+
+  .rel-card{border:1px solid var(--rule);background:#fbf6e8;border-radius:10px;margin-bottom:10px;overflow:hidden;box-shadow:var(--shadow);}
+  .rel-head{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;}
+  .rel-avatar{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:"Noto Serif SC",serif;font-weight:900;font-size:16px;color:#fbf6e8;background:var(--ink);}
+  .rel-avatar.A{background:#2b3a67}
+  .rel-avatar.B{background:#7a5c3a}
+  .rel-avatar.C{background:#4a6b3a}
+  .rel-avatar.D{background:#a87c2c}
+  .rel-avatar.E{background:#b54b3a}
+  .rel-mid{flex:1;min-width:0}
+  .rel-name{font-family:"Noto Serif SC",serif;font-weight:700;font-size:15px}
+  .rel-sub{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-soft);margin-top:2px}
+  .rel-net{text-align:right;font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:15px;}
+  .rel-net.pos{color:var(--moss)}
+  .rel-net.neg{color:var(--vermilion)}
+  .rel-net .lbl{font-size:9px;color:var(--ink-soft);font-weight:400;letter-spacing:1px;display:block}
+  .rel-toggle{width:18px;height:18px;color:var(--ink-faint);transition:transform .25s;flex-shrink:0;}
+  .rel-card.open .rel-toggle{transform:rotate(90deg)}
+  .rel-body{max-height:0;overflow:hidden;transition:max-height .35s ease;background:linear-gradient(180deg,#f8f0d8,#f4ecd8);}
+  .rel-card.open .rel-body{max-height:600px}
+  .rel-inner{padding:6px 16px 14px;border-top:1px dashed var(--rule)}
+
+  .flow-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:12px;}
+  .flow-row + .flow-row{border-top:1px dotted rgba(201,184,150,.6)}
+  .flow-tag{font-family:"Noto Serif SC",serif;font-weight:700;font-size:11px;padding:2px 8px;border-radius:3px;letter-spacing:1px;}
+  .flow-tag.pay{background:rgba(181,75,58,.12);color:var(--vermilion)}
+  .flow-tag.recv{background:rgba(74,107,58,.14);color:var(--moss)}
+  .flow-amt{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:13px}
+  .flow-amt.pos{color:var(--moss)}
+  .flow-amt.neg{color:var(--vermilion)}
+
+  .bill-list{margin-top:8px}
+  .bill{display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;font-size:12px;border-top:1px dotted rgba(201,184,150,.5);}
+  .bill:first-child{border-top:none}
+  .bill-l{flex:1;min-width:0}
+  .bill-purpose{font-weight:500;font-size:12.5px}
+  .bill-meta{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--ink-soft);margin-top:2px}
+  .bill-share{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:13px;color:var(--ink)}
+  .bill-share .of{color:var(--ink-faint);font-weight:400;font-size:10px}
+
+  .why-card{margin-top:18px;border:1px solid var(--rule);border-radius:10px;background:linear-gradient(180deg,#fbf6e8,#f4ecd8);padding:16px;box-shadow:var(--shadow);position:relative;}
+  .why-card::before{content:"注";position:absolute;top:-9px;left:14px;background:var(--ink);color:#fbf6e8;font-family:"Noto Serif SC",serif;font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;letter-spacing:2px;}
+  .why-title{font-family:"Noto Serif SC",serif;font-weight:700;font-size:14px;margin-bottom:8px}
+  .why-text{font-size:12.5px;line-height:1.7;color:var(--ink)}
+  .why-text strong{font-family:"IBM Plex Mono",monospace;color:var(--vermilion)}
+  .why-text .pos{font-family:"IBM Plex Mono",monospace;color:var(--moss);font-weight:600}
+  .why-flow{margin-top:10px;padding:10px 12px;background:rgba(28,25,23,.04);border-radius:6px;font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.8;color:var(--ink-soft);}
+  .why-flow .strike{text-decoration:line-through;color:var(--ink-faint)}
+  .why-flow .keep{color:var(--vermilion);font-weight:700}
+
+  .algo-foot{margin-top:22px;padding:14px;border-top:1px dashed var(--rule);font-size:10.5px;color:var(--ink-soft);line-height:1.7;text-align:center;font-family:"IBM Plex Mono",monospace;}
+  .algo-foot strong{color:var(--ink);font-family:"Noto Serif SC",serif;font-weight:700}
+
+  .hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fbf6e8;font-size:11px;padding:6px 14px;border-radius:20px;letter-spacing:1px;opacity:0;pointer-events:none;transition:opacity .3s;}
+  .hint.show{opacity:.9}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="receipt-head">
+    <div class="rh-top">
+      <div>
+        <div class="rh-title">结 算 依 据</div>
+        <div class="rh-sub">SETTLEMENT · BREAKDOWN</div>
+      </div>
+      <div class="rh-stamp">已对账</div>
+    </div>
+    <div class="rh-meta">
+      <span>旅行 · 我的旅行</span>
+    </div>
+    <div class="rh-summary">
+      <div class="rh-sum-item"><div class="rh-sum-label">总支出</div><div class="rh-sum-val">¥1075.00</div></div>
+      <div class="rh-sum-item"><div class="rh-sum-label">账单数</div><div class="rh-sum-val small">16</div></div>
+      <div class="rh-sum-item"><div class="rh-sum-label">转账笔数</div><div class="rh-sum-val small">4</div></div>
+    </div>
+  </div>
+
+  <div class="tab-row" id="tabRow"></div>
+  <div id="panels"></div>
+
+  <div class="algo-foot">
+    <strong>净额抵消 · 贪心最小转账</strong><br>
+    每人净额 = 总支付 − 总应承担 ｜ 债权人与债务人对冲，最少转账笔数
+  </div>
+</div>
+
+<div class="hint" id="hint">点击卡片可展开明细</div>
+
+<script>
+const members = ['A','B','C','D','E'];
+const expenses = [
+  { id:1,  purpose:'酒店(2晚)',  amount:40000, payer:'A', ben:['A','B','C','D','E'], time:'8/1 14:00' },
+  { id:2,  purpose:'晚餐(第1天)', amount:10000, payer:'A', ben:['A','B','C','D','E'], time:'8/1 19:00' },
+  { id:3,  purpose:'午餐(第1天)', amount:5000,  payer:'A', ben:['A','B','C','D','E'], time:'8/1 12:00' },
+  { id:4,  purpose:'景区门票',    amount:5000,  payer:'A', ben:['A','B','C','D','E'], time:'8/1 10:00' },
+  { id:5,  purpose:'打车',        amount:3000,  payer:'A', ben:['A','B','C','D','E'], time:'8/1 09:00' },
+  { id:6,  purpose:'早餐',        amount:2000,  payer:'A', ben:['A','B','C','D','E'], time:'8/1 08:00' },
+  { id:7,  purpose:'酒店(续住)',  amount:20000, payer:'B', ben:['A','B','C','D','E'], time:'8/2 14:00' },
+  { id:8,  purpose:'晚餐(第2天)', amount:5000,  payer:'B', ben:['A','B','C','D','E'], time:'8/2 19:00' },
+  { id:9,  purpose:'午餐(第2天)', amount:3000,  payer:'B', ben:['A','B','C','D','E'], time:'8/2 12:00' },
+  { id:10, purpose:'打车(机场)',  amount:2000,  payer:'B', ben:['A','B','C','D','E'], time:'8/2 09:00' },
+  { id:11, purpose:'咖啡',        amount:3000,  payer:'C', ben:['C','E'], time:'8/2 15:00' },
+  { id:12, purpose:'零食',        amount:1500,  payer:'C', ben:['C','D','E'], time:'8/2 16:00' },
+  { id:13, purpose:'饮品',        amount:2000,  payer:'D', ben:['A','B','C','D','E'], time:'8/2 14:00' },
+  { id:14, purpose:'矿泉水',      amount:1000,  payer:'D', ben:['D','E'], time:'8/2 11:00' },
+  { id:15, purpose:'伴手礼',      amount:4000,  payer:'A', ben:['A','B','C','D'], time:'8/2 17:00' },
+  { id:16, purpose:'零食(回程)',  amount:1000,  payer:'B', ben:['B','C','D','E'], time:'8/2 18:00' }
+];
+
+function shareOf(exp, memberId){
+  if(!exp.ben.includes(memberId)) return 0;
+  const base = Math.floor(exp.amount / exp.ben.length);
+  const rem  = exp.amount % exp.ben.length;
+  const idx  = exp.ben.indexOf(memberId);
+  return base + (idx < rem ? 1 : 0);
+}
+
+function buildUserData(){
+  const data = {};
+  for(const me of members){
+    let paid = 0, owed = 0;
+    const iPaidFor = {}, theyPaidForMe = {}, iPaidForBills = {}, theyPaidForMeBills = {};
+    for(const o of members) if(o!==me){
+      iPaidFor[o]=0; theyPaidForMe[o]=0;
+      iPaidForBills[o]=[]; theyPaidForMeBills[o]=[];
+    }
+    for(const e of expenses){
+      const myShare = shareOf(e, me);
+      owed += myShare;
+      if(e.payer === me){
+        paid += e.amount;
+        for(const o of e.ben) if(o!==me){
+          const s = shareOf(e, o);
+          iPaidFor[o] += s;
+          iPaidForBills[o].push({ purpose:e.purpose, total:e.amount, share:s, benCount:e.ben.length, time:e.time });
+        }
+      } else if(e.ben.includes(me)){
+        theyPaidForMe[e.payer] += myShare;
+        theyPaidForMeBills[e.payer].push({ purpose:e.purpose, total:e.amount, share:myShare, benCount:e.ben.length, payer:e.payer, time:e.time });
+      }
+    }
+    data[me] = { me, paid, owed, balance: paid - owed, iPaidFor, theyPaidForMe, iPaidForBills, theyPaidForMeBills };
+  }
+  return data;
+}
+
+const userData = buildUserData();
+const transactions = [
+  { from:'E', to:'A', amount:22150 },
+  { from:'D', to:'A', amount:18650 },
+  { from:'C', to:'A', amount:7800  },
+  { from:'C', to:'B', amount:10350 }
+];
+
+const yuan = c => (c/100).toFixed(2);
+const sign = c => c>0?'+':'';
+
+function renderTabs(){
+  const row = document.getElementById('tabRow');
+  row.innerHTML = members.map(m=>{
+    const b = userData[m].balance;
+    const cls = b>0?'pos':(b<0?'neg':'');
+    const tag = b>0?`应收 ¥${yuan(b)}`:(b<0?`应付 ¥${yuan(-b)}`:'已平账');
+    return `<div class="tab" data-m="${m}"><div class="tab-name">${m}</div><div class="tab-tag ${cls}">${tag}</div></div>`;
+  }).join('');
+  row.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>selectMember(t.dataset.m)));
+}
+
+function selectMember(m){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.m===m));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.dataset.m===m));
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function relRows(me){
+  const d = userData[me];
+  const rows = [];
+  for(const o of members) if(o!==me){
+    const iGave = d.iPaidFor[o];
+    const theyGave = d.theyPaidForMe[o];
+    const net = iGave - theyGave;
+    rows.push({ o, iGave, theyGave, net, myBills: d.iPaidForBills[o], theirBills: d.theyPaidForMeBills[o] });
+  }
+  rows.sort((a,b)=>(b.iGave+b.theyGave)-(a.iGave+a.theyGave));
+  return rows;
+}
+
+function renderPanel(me){
+  const d = userData[me];
+  const myTx = transactions.filter(t=>t.from===me || t.to===me);
+  const isRecv = d.balance > 0;
+  const rows = relRows(me);
+
+  let taskHtml = '';
+  if(myTx.length===0){
+    taskHtml = `<div class="task-bar"><div><div class="task-label">转账任务</div><div class="task-item" style="color:var(--ink-soft)">已平账，无需转账</div></div></div>`;
+  } else {
+    const recv = d.balance >= 0;
+    taskHtml = `<div class="task-bar ${recv?'recv':'pay'}"><div><div class="task-label">${recv?'应收来源':'应付去向'}</div><div class="task-list">
+      ${myTx.map(t=>{
+        const out = t.from===me;
+        const other = out ? t.to : t.from;
+        const arrow = out ? '→' : '←';
+        return `<div class="task-item"><span class="who">${me}</span><span class="arr">${arrow}</span><span class="who">${other}</span><span style="float:right" class="amt ${out?'neg':'pos'}">${out?'-':'+'}¥${yuan(t.amount)}</span></div>`;
+      }).join('')}
+    </div></div></div>`;
+  }
+
+  const relsHtml = rows.map(r=>{
+    const netCls = r.net>0?'pos':(r.net<0?'neg':'');
+    const netLbl = r.net>0?`Ta 应付我`:(r.net<0?`我 应付 Ta`:`已两清`);
+    const netShow = r.net!==0 ? `${sign(r.net)}¥${yuan(Math.abs(r.net))}` : '¥0.00';
+
+    const myBillsHtml = r.myBills.length ? `
+      <div class="flow-row"><span class="flow-tag pay">我替 Ta 垫付</span><span class="flow-amt neg">−¥${yuan(r.iGave)}</span></div>
+      <div class="bill-list">
+        ${r.myBills.map(b=>`<div class="bill"><div class="bill-l"><div class="bill-purpose">${b.purpose}</div><div class="bill-meta">${b.time} · 我付款 · ${b.benCount}人分摊</div></div><div class="bill-share">−¥${yuan(b.share)}<span class="of"> /¥${yuan(b.total)}</span></div></div>`).join('')}
+      </div>` : '';
+
+    const theirBillsHtml = r.theirBills.length ? `
+      <div class="flow-row"><span class="flow-tag recv">Ta 替我垫付</span><span class="flow-amt pos">+¥${yuan(r.theyGave)}</span></div>
+      <div class="bill-list">
+        ${r.theirBills.map(b=>`<div class="bill"><div class="bill-l"><div class="bill-purpose">${b.purpose}</div><div class="bill-meta">${b.time} · ${b.payer}付款 · ${b.benCount}人分摊</div></div><div class="bill-share">+¥${yuan(b.share)}<span class="of"> /¥${yuan(b.total)}</span></div></div>`).join('')}
+      </div>` : '';
+
+    return `<div class="rel-card">
+      <div class="rel-head" onclick="this.parentElement.classList.toggle('open')">
+        <div class="rel-avatar ${r.o}">${r.o}</div>
+        <div class="rel-mid"><div class="rel-name">与 ${r.o} 的往来</div><div class="rel-sub">我垫付 ¥${yuan(r.iGave)} · Ta 垫付 ¥${yuan(r.theyGave)}</div></div>
+        <div class="rel-net ${netCls}"><span class="lbl">${netLbl}</span>${netShow}</div>
+        <svg class="rel-toggle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 6 15 12 9 18"/></svg>
+      </div>
+      <div class="rel-body"><div class="rel-inner">${myBillsHtml}${theirBillsHtml}</div></div>
+    </div>`;
+  }).join('');
+
+  return `<div class="panel" data-m="${me}">
+    <div class="net-card">
+      <div class="net-label">成员 · 净额</div>
+      <div class="net-name">${me}</div>
+      <div class="net-amount ${isRecv?'pos':'neg'}">${isRecv?'+':'−'}¥${yuan(Math.abs(d.balance))}<span class="unit">元</span></div>
+      <div class="net-foot"><span>已支付 ¥${yuan(d.paid)}</span><span>应承担 ¥${yuan(d.owed)}</span></div>
+    </div>
+    ${taskHtml}
+    <div class="sec-title"><span class="bar"></span><h2>与 他 人 往 来</h2><span class="num">${rows.length} 方</span><span class="bar"></span></div>
+    ${relsHtml}
+    ${renderWhy(me)}
+  </div>`;
+}
+
+function renderWhy(me){
+  if(me==='E') return `<div class="why-card">
+    <div class="why-title">为什么我只付给 A，而不付给 C？</div>
+    <div class="why-text">我共消费 <strong>¥221.50</strong>，分别由 A、B、C、D 替我垫付。其中 C 替我垫付了咖啡、零食共 <strong>¥20.00</strong>，看似我该还 C。但 <span class="pos">C 自己也是净债务人</span> —— C 消费 <strong>¥226.50</strong> 却只付了 ¥45.00，其中欠 A 就有 <strong>¥140.00</strong>。系统做<strong>净额抵消</strong>：与其让我→C→A 转两次，不如让我直接付给最大债权人 A。</div>
+    <div class="why-flow">原始债权关系：<br>E → A ¥130.00　E → B ¥62.50　E → C ¥20.00　E → D ¥9.00<br>C → A ¥140.00　C → B ¥62.50　C → D ¥4.00<br>─────────────────────────<br><span class="strike">E → C ¥20.00 → A</span>　抵消后<br><span class="keep">E → A ¥221.50</span>　<span class="keep">C → A ¥78.00</span>　<span class="keep">C → B ¥103.50</span>　<span class="keep">D → A ¥186.50</span></div>
+  </div>`;
+  if(me==='C') return `<div class="why-card">
+    <div class="why-title">为什么我替 E 付了钱，却还要再付钱？</div>
+    <div class="why-text">我替 E 垫付了 <strong>¥20.00</strong>、替 D 垫付了 ¥5.00，共替他人垫付 ¥25.00。但我自己的消费更高：欠 A <strong>¥140.00</strong>、欠 B <strong>¥62.50</strong>、欠 D ¥4.00，合计应承担 <strong>¥226.50</strong>。净额 = 45.00 − 226.50 = <strong>−¥181.50</strong>。我替 E 垫的钱已并入我的净额抵消，故我直接付给 A 与 B，不再向 E 收款。</div>
+    <div class="why-flow">我支付 ¥45.00 − 我应承担 ¥226.50 = <span class="keep">−¥181.50</span><br>付给 A ¥78.00　付给 B ¥103.50　合计 ¥181.50</div>
+  </div>`;
+  if(me==='A') return `<div class="why-card">
+    <div class="why-title">为什么所有人都付给我？</div>
+    <div class="why-text">我是最大债权人：替他人垫付 <span class="pos">¥550.00</span>（B/C/D 各 ¥140.00，E ¥130.00），他人仅替我垫付 ¥64.00（B ¥60.00 + D ¥4.00）。净应收 <span class="pos">+¥486.00</span>，所有债务人都直接对我结算。</div>
+    <div class="why-flow">收 E ¥221.50　收 D ¥186.50　收 C ¥78.00　合计 <span class="keep">+¥486.00</span></div>
+  </div>`;
+  if(me==='B') return `<div class="why-card">
+    <div class="why-title">为什么我只收 C 的钱？</div>
+    <div class="why-text">我替他人垫付 <span class="pos">¥247.50</span>，但 A 替我垫付更多（¥140.00）。抵消后我仍应收 <span class="pos">+¥103.50</span>，恰好来自同样欠我钱的 C。</div>
+    <div class="why-flow">收 C ¥103.50　合计 <span class="keep">+¥103.50</span></div>
+  </div>`;
+  if(me==='D') return `<div class="why-card">
+    <div class="why-title">为什么我付给 A 而不是 E？</div>
+    <div class="why-text">我替 E 垫付了 ¥5.00，但我自己欠 A <strong>¥140.00</strong>、欠 B <strong>¥62.50</strong>、欠 C ¥5.00。净应付 <strong>−¥186.50</strong>，系统让我直接付给最大债权人 A，我替 E 垫的钱已在净额中抵消。</div>
+    <div class="why-flow">付给 A ¥186.50　合计 <span class="keep">−¥186.50</span></div>
+  </div>`;
+  return '';
+}
+
+function render(){
+  renderTabs();
+  document.getElementById('panels').innerHTML = members.map(m=>renderPanel(m)).join('');
+  selectMember('E');
+}
+render();
+setTimeout(()=>{const h=document.getElementById('hint');h.classList.add('show');setTimeout(()=>h.classList.remove('show'),2600);},800);
+</script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>记账流水 · 原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="stage">
+  <!-- 票据头：旅行名 + 导入/导出/结算 -->
+  <div class="receipt-head">
+    <div class="rh-top">
+      <div>
+        <div class="rh-title">我 的 旅 行</div>
+        <div class="rh-sub">EXPENSE · 记账流水</div>
+      </div>
+      <div class="rh-stamp indigo">记账中</div>
+    </div>
+    <div class="rh-meta">
+      <span>step 2 / 4</span>
+      <div class="rh-actions">
+        <button class="rh-btn">导 入</button>
+        <button class="rh-btn">导 出</button>
+        <button class="rh-btn primary">结 算</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 记一笔表单 -->
+  <div class="card">
+    <div class="card-title">记 一 笔</div>
+    <div class="field">
+      <label class="field-label">用 途</label>
+      <input class="input" type="text" placeholder="如：午餐、打车" value="晚餐(第2天)" maxlength="50" />
+    </div>
+    <div class="field-row">
+      <div class="field" style="flex:1">
+        <label class="field-label">金 额 (元)</label>
+        <input class="input mono" type="number" placeholder="0.00" step="0.01" min="0" value="50.00" />
+      </div>
+      <div class="field" style="flex:1">
+        <label class="field-label">支 付 人</label>
+        <select class="select"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select>
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label">时 间</label>
+      <input class="input mono" type="datetime-local" value="2026-08-02T19:00" />
+    </div>
+    <div class="field">
+      <label class="field-label">受 益 人</label>
+      <div class="chip-group">
+        <span class="chip on">A</span>
+        <span class="chip on">B</span>
+        <span class="chip on">C</span>
+        <span class="chip on">D</span>
+        <span class="chip on">E</span>
+      </div>
+    </div>
+    <button class="btn primary block">添 加</button>
+  </div>
+
+  <!-- 账单明细 -->
+  <div class="sec-title"><span class="bar"></span><h2>账 单 明 细</h2><span class="num">16 笔</span><span class="bar"></span></div>
+
+  <div class="bill-item">
+    <div class="bill-top"><span class="bill-purpose">零食(回程)</span><span class="bill-amount">¥10.00</span></div>
+    <div class="bill-meta">B 付 · 8/2 18:00</div>
+    <div class="bill-ben"><span class="lbl">受益</span>B、C、D、E</div>
+    <div class="bill-actions"><button class="btn sm">修 改</button><button class="btn sm danger">删 除</button></div>
+  </div>
+
+  <div class="bill-item">
+    <div class="bill-top"><span class="bill-purpose">伴手礼</span><span class="bill-amount">¥40.00</span></div>
+    <div class="bill-meta">A 付 · 8/2 17:00</div>
+    <div class="bill-ben"><span class="lbl">受益</span>A、B、C、D</div>
+    <div class="bill-actions"><button class="btn sm">修 改</button><button class="btn sm danger">删 除</button></div>
+  </div>
+
+  <div class="bill-item">
+    <div class="bill-top"><span class="bill-purpose">矿泉水</span><span class="bill-amount">¥10.00</span></div>
+    <div class="bill-meta">D 付 · 8/2 11:00</div>
+    <div class="bill-ben"><span class="lbl">受益</span>D、E</div>
+    <div class="bill-actions"><button class="btn sm">修 改</button><button class="btn sm danger">删 除</button></div>
+  </div>
+
+  <div class="bill-item">
+    <div class="bill-top"><span class="bill-purpose">饮品</span><span class="bill-amount">¥20.00</span></div>
+    <div class="bill-meta">D 付 · 8/2 14:00</div>
+    <div class="bill-ben"><span class="lbl">受益</span>A、B、C、D、E</div>
+    <div class="bill-actions"><button class="btn sm">修 改</button><button class="btn sm danger">删 除</button></div>
+  </div>
+
+  <div style="text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);padding:8px 0;">······ 共 16 笔，倒序展示 ······</div>
+
+  <!-- 重新开始 -->
+  <button class="btn ghost block" style="margin-top:18px;color:var(--ink-soft);">重 新 开 始</button>
+
+  <div class="foot-note">
+    <strong>功能保留</strong><br>
+    导入(粘贴JSON) · 导出(复制剪贴板) · 结算跳转 · 修改/删除 · 重新开始(二次确认)
+  </div>
+</div>
+
+<!-- 删除确认弹窗（静态展示） -->
+<div class="overlay">
+  <div class="dialog">
+    <h3>删 除 确 认</h3>
+    <p>确定删除「矿泉水」这条记录吗？</p>
+    <div class="dialog-actions">
+      <button class="btn sm ghost">取 消</button>
+      <button class="btn sm vermilion">确 认</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

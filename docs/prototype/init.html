@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>开始旅行 · 原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="stage">
+  <!-- 票据头 -->
+  <div class="receipt-head">
+    <div class="rh-top">
+      <div>
+        <div class="rh-title">开 始 旅 行</div>
+        <div class="rh-sub">INIT · 设定旅行与成员</div>
+      </div>
+      <div class="rh-stamp">待启程</div>
+    </div>
+    <div class="rh-meta">
+      <span>step 1 / 4</span>
+      <span>成员 2 ~ 20</span>
+    </div>
+  </div>
+
+  <!-- 旅行名称 -->
+  <div class="card">
+    <div class="card-title">旅 行 名 称</div>
+    <div class="field">
+      <input class="input" type="text" value="我的旅行" placeholder="我的旅行" maxlength="20" />
+    </div>
+  </div>
+
+  <!-- 成员人数 -->
+  <div class="card">
+    <div class="card-title">成 员 人 数</div>
+    <div class="stepper">
+      <button disabled>−</button>
+      <span class="val">5</span>
+      <button>+</button>
+    </div>
+    <div style="text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);margin-top:4px;">最少 2 · 最多 20</div>
+  </div>
+
+  <!-- 成员昵称 -->
+  <div class="card">
+    <div class="card-title">成 员 昵 称 <span class="cnt">5 人</span></div>
+    <div class="name-list">
+      <div class="name-row"><span class="name-idx">壹</span><input class="input" type="text" value="A" placeholder="成员1" maxlength="10" /></div>
+      <div class="name-row"><span class="name-idx">贰</span><input class="input" type="text" value="B" placeholder="成员2" maxlength="10" /></div>
+      <div class="name-row"><span class="name-idx">叁</span><input class="input" type="text" value="C" placeholder="成员3" maxlength="10" /></div>
+      <div class="name-row"><span class="name-idx">肆</span><input class="input" type="text" value="D" placeholder="成员4" maxlength="10" /></div>
+      <div class="name-row"><span class="name-idx">伍</span><input class="input" type="text" value="E" placeholder="成员5" maxlength="10" /></div>
+    </div>
+  </div>
+
+  <!-- 开始按钮 -->
+  <button class="btn vermilion block" style="margin-top:18px;font-size:17px;padding:15px;">开 始 旅 行</button>
+
+  <div class="foot-note">
+    <strong>说明</strong><br>
+    设定旅行名与成员后进入记账页 · 数据仅存本地浏览器
+  </div>
+</div>
+</body>
+</html>

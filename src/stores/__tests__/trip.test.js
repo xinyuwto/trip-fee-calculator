@@ -120,6 +120,88 @@ describe('useTripStore', () => {
     expect(result.success).toBe(false)
   })
 
+  it('addExpense stores optional note field', () => {
+    const { trip, initTrip, addExpense } = useTripStore()
+    initTrip()
+
+    addExpense({
+      purpose: '午餐',
+      amount: 15000,
+      payerId: trip.value.members[0].id,
+      beneficiaryIds: trip.value.members.map(m => m.id),
+      note: '川菜馆，味道不错'
+    })
+
+    expect(trip.value.expenses[0].note).toBe('川菜馆，味道不错')
+  })
+
+  it('addExpense defaults note to empty string when omitted', () => {
+    const { trip, initTrip, addExpense } = useTripStore()
+    initTrip()
+
+    addExpense({
+      purpose: '午餐',
+      amount: 15000,
+      payerId: trip.value.members[0].id,
+      beneficiaryIds: trip.value.members.map(m => m.id)
+    })
+
+    expect(trip.value.expenses[0].note).toBe('')
+  })
+
+  it('updateExpense can modify note field', () => {
+    const { trip, initTrip, addExpense, updateExpense } = useTripStore()
+    initTrip()
+
+    addExpense({ purpose: '午餐', amount: 15000, payerId: trip.value.members[0].id, beneficiaryIds: trip.value.members.map(m => m.id) })
+    const id = trip.value.expenses[0].id
+
+    updateExpense(id, { note: '更新备注' })
+    expect(trip.value.expenses[0].note).toBe('更新备注')
+    expect(trip.value.expenses[0].purpose).toBe('午餐') // unchanged
+  })
+
+  it('importData accepts expenses without note field', () => {
+    const { importData } = useTripStore()
+    const json = JSON.stringify({
+      name: '测试',
+      members: [{ id: '1', name: 'A' }, { id: '2', name: 'B' }],
+      expenses: [{ id: 'x', purpose: '机票', amount: 100000, payerId: '1', beneficiaryIds: ['1', '2'] }],
+      createdAt: new Date().toISOString()
+    })
+
+    const result = importData(json)
+    expect(result.success).toBe(true)
+  })
+
+  it('addExpense sets toast message on success', () => {
+    const { trip, initTrip, addExpense, toast } = useTripStore()
+    initTrip()
+
+    addExpense({
+      purpose: '午餐',
+      amount: 15000,
+      payerId: trip.value.members[0].id,
+      beneficiaryIds: trip.value.members.map(m => m.id)
+    })
+
+    expect(toast.value.message).toContain('添加')
+    expect(toast.value.id).toBeGreaterThan(0)
+  })
+
+  it('updateExpense sets toast message on success', () => {
+    const { trip, initTrip, addExpense, updateExpense, toast } = useTripStore()
+    initTrip()
+
+    addExpense({ purpose: '午餐', amount: 15000, payerId: trip.value.members[0].id, beneficiaryIds: trip.value.members.map(m => m.id) })
+    const id = trip.value.expenses[0].id
+
+    updateExpense(id, { purpose: '晚餐', amount: 20000 })
+
+    expect(toast.value.message).toContain('修改')
+    expect(toast.value.id).toBeGreaterThan(0)
+  })
+
   it('persists to localStorage', () => {
     const { trip, initTrip } = useTripStore()
     initTrip('持久化测试')
