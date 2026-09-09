@@ -126,11 +126,13 @@ HTTP 网关路由 /trip-sync（匿名，CORS 白名单）
 
 ### 服务端校验规则
 
-- 同步码必须匹配 `^[2-9A-HJKMNP-Z]{8}$`，否则 400（防乱码探测）
-- `payload` 序列化后超过 **512KB** 拒绝（400，函数请求体上限 1MB，留安全余量）
-- `payload` 必须含 `name`（string）、`members`（非空数组）、`expenses`（数组）基本结构，否则 400（防止写入垃圾数据）
-- `revision` 类型必须为非负整数；`updatedBy` 截断到 20 字符
+- 同步码必须匹配 `^[2-9A-HJKMNP-Z]{8}$`（大小写归一化为大写），否则 400 `INVALID_CODE`
+- `payload` 序列化后超过 **512KB** → 400 `PAYLOAD_TOO_LARGE`（函数请求体上限 1MB，留安全余量）
+- `payload` 必须含 `name`（非空 string）、`members`（2~20 数组且每项含 id/name）、`expenses`（数组且每项含 id/purpose/amount/payerId/beneficiaryIds），否则 400 `INVALID_PAYLOAD`
+- `baseRevision` 必须为非负整数，否则 400 `INVALID_REVISION`；`updatedBy` 截断到 20 字符
+- **文档不存在时**：`baseRevision === 0` 且非 force → 新建（revision=1）；其余情况（baseRevision > 0 或 force）→ 404 `TRIP_NOT_FOUND`
 - 每请求全量替换 payload 字段（无增量逻辑）
+- 云函数在代码内返回 CORS 头（`Access-Control-Allow-Origin: *`，OPTIONS 预检返回 204），浏览器跨域由函数自身处理；环境安全域名仍配置作为网关层兜底
 
 ## 7. 同步码规范
 
@@ -149,16 +151,16 @@ const SYNC_URL = 'https://<网关域名>/trip-sync'  // 部署后确定，常量
 export function generateSyncCode()          // → 'K3X9QA2M' 风格 8 位码
 export function validateSyncCode(code)      // → boolean
 export async function pullTrip(code)
-// 成功 → { payload, revision, updatedAt, updatedBy }
-// 404 → throw { code: 'TRIP_NOT_FOUND' }
-// 网络失败 → throw { code: 'NETWORK_ERROR' }
+// 成功 → { success: true, payload, revision, updatedAt, updatedBy }
+// 失败 → { success: false, code: 'TRIP_NOT_FOUND' | 'INVALID_CODE' | 'NETWORK_ERROR', message }
 
 export async function pushTrip({ code, baseRevision, payload, updatedBy, force = false })
-// 成功 → { revision }
-// 409 → throw { code: 'REVISION_CONFLICT', remoteRevision, remoteUpdatedAt, remoteUpdatedBy }
+// 成功 → { success: true, revision }
+// 失败 → { success: false, code: 'REVISION_CONFLICT' | 'TRIP_NOT_FOUND' | 'PAYLOAD_TOO_LARGE' | 'INVALID_REQUEST' | 'NETWORK_ERROR',
+//          remoteRevision?, remoteUpdatedAt?, remoteUpdatedBy?, message }
 ```
 
-所有函数不触碰 store / localStorage，可独立 mock `fetch` 单测。
+返回结果对象（不抛异常），与 `importData` / `copyToClipboard` 的项目惯例一致。所有函数不触碰 store / localStorage，可独立 mock `fetch` 单测。
 
 ### 8.2 store 扩展（`src/stores/trip.js`）
 
@@ -166,8 +168,10 @@ export async function pushTrip({ code, baseRevision, payload, updatedBy, force =
 
 ```js
 const sync = ref(loadSyncState())  // localStorage key: 'trip-fee-calculator-sync'
-// 结构：{ code: 'K3X9QA2M' | null, baseRevision: number, lastSyncedAt: string | null }
+// 结构：{ code: 'K3X9QA2M' | null, baseRevision: number, lastSyncedAt: string | null, myMemberId: string | null }
 ```
+
+`myMemberId` 是本设备的身份（对应 `trip.members` 中的成员 id），用于推送时的 `updatedBy` 和冲突提示展示；在「开启同步」或「输码加入」时由用户选择并持久化。
 
 行为：
 
@@ -181,14 +185,15 @@ const sync = ref(loadSyncState())  // localStorage key: 'trip-fee-calculator-syn
 
 **未开启同步**：
 
+- 「你的身份」下拉选择（trip.members）——开启或加入前必选，作为本设备的 `myMemberId`
 - [开启同步]：生成新码 → 推送当前 trip（baseRevision=0 → 新建 revision=1）→ 保存 sync 状态 → 显示码
 - [输码加入]：输入 8 位码 → 拉取 → 展示远端摘要（旅行名/成员数/最后更新）→ 确认覆盖本地（复用导入的二次确认文案风格）→ 保存 sync 状态
 
 **已开启同步**：
 
 - 显示同步码（点击复制到剪贴板）
-- 显示上次同步时间
-- [拉 取]：拉取 → 确认覆盖本地 → 更新本地与 baseRevision
+- 显示我的身份与上次同步时间
+- [拉 取]：拉取 → 若远端 revision 与本地相同则提示「已是最新」；否则确认覆盖本地 → 更新本地与 baseRevision
 - [推 送]：推送本地 trip；409 时进入冲突视图
 - [解除同步]：清空 sync 状态（云端文档保留，其他成员不受影响）
 
