@@ -1,6 +1,7 @@
 import { ref, watch } from 'vue'
 
 const TRIP_KEY = 'trip-fee-calculator-data'
+const SYNC_KEY = 'trip-fee-calculator-sync'
 const DEFAULT_MEMBER_COUNT = 5
 
 let singleton = null
@@ -14,6 +15,37 @@ function createDefaultMembers(count) {
     id: uuid(),
     name: `成员${i + 1}`
   }))
+}
+
+function defaultSyncState() {
+  return { code: null, baseRevision: 0, lastSyncedAt: null, myMemberId: null }
+}
+
+function loadSyncState() {
+  try {
+    const raw = localStorage.getItem(SYNC_KEY)
+    if (!raw) return defaultSyncState()
+    const s = JSON.parse(raw)
+    if (!s || typeof s !== 'object') return defaultSyncState()
+    if (s.code !== null && !/^[2-9A-HJKMNP-Z]{8}$/.test(s.code)) return defaultSyncState()
+    if (!Number.isInteger(s.baseRevision) || s.baseRevision < 0) return defaultSyncState()
+    return {
+      code: s.code,
+      baseRevision: s.baseRevision,
+      lastSyncedAt: typeof s.lastSyncedAt === 'string' ? s.lastSyncedAt : null,
+      myMemberId: typeof s.myMemberId === 'string' ? s.myMemberId : null
+    }
+  } catch {
+    return defaultSyncState()
+  }
+}
+
+function saveSyncState(state) {
+  try {
+    localStorage.setItem(SYNC_KEY, JSON.stringify(state))
+  } catch (error) {
+    console.warn('同步状态保存失败', error)
+  }
 }
 
 function loadFromStorage() {
@@ -52,6 +84,7 @@ export function useTripStore() {
 
   const trip = ref(loadFromStorage())
   const toast = ref({ message: '', id: 0 })
+  const sync = ref(loadSyncState())
 
   watch(trip, (val) => saveToStorage(val), { deep: true })
 
@@ -99,6 +132,17 @@ export function useTripStore() {
 
   function resetTrip() {
     trip.value = null
+    clearSyncState()
+  }
+
+  function setSyncState(partial) {
+    sync.value = { ...sync.value, ...partial }
+    saveSyncState(sync.value)
+  }
+
+  function clearSyncState() {
+    sync.value = defaultSyncState()
+    saveSyncState(sync.value)
   }
 
   function exportData() {
@@ -130,6 +174,6 @@ export function useTripStore() {
     }
   }
 
-  singleton = { trip, toast, initTrip, addExpense, updateExpense, removeExpense, resetTrip, exportData, importData }
+  singleton = { trip, toast, sync, initTrip, addExpense, updateExpense, removeExpense, resetTrip, setSyncState, clearSyncState, exportData, importData }
   return singleton
 }
