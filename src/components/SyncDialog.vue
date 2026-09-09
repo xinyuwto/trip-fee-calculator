@@ -146,7 +146,6 @@ async function handleForcePush() {
 }
 
 async function handlePullRemoteOnConflict() {
-  conflict.value = null
   await handlePull()
 }
 
