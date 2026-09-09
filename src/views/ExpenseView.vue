@@ -5,6 +5,7 @@ import { useTripStore } from '../stores/trip'
 import ExpenseForm from '../components/ExpenseForm.vue'
 import ExpenseList from '../components/ExpenseList.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import SyncDialog from '../components/SyncDialog.vue'
 
 const router = useRouter()
 const { trip, toast, addExpense, updateExpense, removeExpense, resetTrip, exportData, importData } = useTripStore()
@@ -18,6 +19,7 @@ const deleteTarget = ref(null)
 const showReset = ref(false)
 const showReset2 = ref(false)
 const showImport = ref(false)
+const showSync = ref(false)
 const importText = ref('')
 const importError = ref('')
 const importMsg = ref('')
@@ -102,6 +104,7 @@ function handleImport() {
       <div class="rh-meta">
         <span>step 2 / 4</span>
         <div class="rh-actions">
+          <button class="rh-btn" @click="showSync = true">同 步</button>
           <button class="rh-btn" @click="showImport = true">导 入</button>
           <button class="rh-btn" @click="handleExport">导 出</button>
           <button class="rh-btn primary" @click="router.push('/settlement')">结 算</button>
@@ -158,6 +161,8 @@ function handleImport() {
         </div>
       </div>
     </div>
+
+    <SyncDialog :show="showSync" @close="showSync = false" />
   </div>
 </template>
 
