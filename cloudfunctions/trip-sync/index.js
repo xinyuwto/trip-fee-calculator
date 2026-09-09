@@ -15,6 +15,8 @@ const app = tcb.init({
 const db = app.database()
 const COLLECTION = 'trips'
 
+const MAX_BODY_BYTES = MAX_PAYLOAD_BYTES + 48 * 1024 // payload 上限 + JSON 封套余量
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -28,13 +30,26 @@ function sendJson(res, statusCode, data) {
 
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
-    let raw = ''
-    req.on('data', (chunk) => { raw += chunk })
+    const chunks = []
+    let size = 0
+    let aborted = false
+    req.on('data', (chunk) => {
+      if (aborted) return
+      size += chunk.length
+      if (size > MAX_BODY_BYTES) {
+        aborted = true
+        reject(new Error('BODY_TOO_LARGE'))
+        return
+      }
+      chunks.push(chunk)
+    })
     req.on('end', () => {
+      if (aborted) return
+      const raw = chunks.length ? Buffer.concat(chunks).toString('utf8') : ''
       if (!raw) { resolve(null); return }
       try { resolve(JSON.parse(raw)) } catch { resolve(null) }
     })
-    req.on('error', reject)
+    req.on('error', (e) => { if (!aborted) reject(e) })
   })
 }
 
@@ -64,7 +79,15 @@ async function handleGet(res, url) {
 }
 
 async function handlePost(res, req) {
-  const body = await readJsonBody(req)
+  let body
+  try {
+    body = await readJsonBody(req)
+  } catch (e) {
+    if (e && e.message === 'BODY_TOO_LARGE') {
+      return sendJson(res, 400, { error: 'PAYLOAD_TOO_LARGE' })
+    }
+    throw e
+  }
   if (!body || typeof body !== 'object') return sendJson(res, 400, { error: 'INVALID_REQUEST' })
   const code = normalizeCode(body.code)
   if (!CODE_RE.test(code)) return sendJson(res, 400, { error: 'INVALID_CODE' })
