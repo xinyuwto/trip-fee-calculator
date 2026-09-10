@@ -210,7 +210,7 @@ const sync = ref(loadSyncState())  // localStorage key: 'trip-fee-calculator-syn
 1. 创建 `trips` 集合，权限设为仅管理员读写（`ADMINONLY`）
 2. 创建云函数 `trip-sync`（Nodejs18.15，HTTP 型，依赖 `@cloudbase/node-sdk`）
 3. 开通 HTTP 网关（如未开通，`enableService`），创建路由 `/trip-sync` → `WEB_SCF` → `trip-sync`，鉴权关闭（匿名）
-4. 添加环境安全域名（CORS 白名单）：`localhost:5173`（开发）、`trip-fee-calculator-playground-d0goyj2w0f42a96b8.webapps.tcloudbase.com`（生产）
+4. ~~添加环境安全域名（CORS 白名单）~~：体验版套餐不支持 `addSecurityDomain`（部署时实测报「当前套餐无法执行此操作」）；CORS 由网关回显请求 Origin 提供（见 §6），无需配置安全域名
 5. 冒烟测试：curl 验证 GET 404 / POST 新建 / POST 409 / force 覆盖全链路
 6. 将网关域名写入 `src/utils/sync.js` 的 `SYNC_URL` 常量
 
