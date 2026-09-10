@@ -132,7 +132,7 @@ HTTP 网关路由 /trip-sync（匿名，CORS 白名单）
 - `baseRevision` 必须为非负整数，否则 400 `INVALID_REVISION`；`updatedBy` 截断到 20 字符
 - **文档不存在时**：`baseRevision === 0` 且非 force → 新建（revision=1）；其余情况（baseRevision > 0 或 force）→ 404 `TRIP_NOT_FOUND`
 - 每请求全量替换 payload 字段（无增量逻辑）
-- 云函数在代码内返回 CORS 头（`Access-Control-Allow-Origin: *`，OPTIONS 预检返回 204），浏览器跨域由函数自身处理；环境安全域名仍配置作为网关层兜底
+- CORS：`Access-Control-Allow-Origin` 由网关回显请求 Origin 提供，云函数只返回 `Access-Control-Allow-Methods` / `Access-Control-Allow-Headers`（OPTIONS 预检返回 204）；函数侧**不得**再设置 ACAO（与网关回显叠加会形成非法多值头，E2E 阶段发现并修正）；体验版套餐不支持安全域名配置，网关回显即最终方案
 
 ## 7. 同步码规范
 
