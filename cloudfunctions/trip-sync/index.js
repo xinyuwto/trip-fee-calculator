@@ -18,7 +18,6 @@ const COLLECTION = 'trips'
 const MAX_BODY_BYTES = MAX_PAYLOAD_BYTES + 48 * 1024 // payload 上限 + JSON 封套余量
 
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type'
 }
