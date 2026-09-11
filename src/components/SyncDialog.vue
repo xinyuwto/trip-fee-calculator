@@ -35,13 +35,16 @@ const codeValid = computed(() => validateSyncCode(inputCode.value))
 const currentDup = computed(() => engine.pendingDuplicates.value[dupIndex.value] || null)
 
 // 自动同步发现重复项时（ExpenseView 自动打开本弹窗），切换到去重确认视图
-watch(() => engine.pendingDuplicates.value.length, (n) => {
-  if (n > 0 && props.show) {
-    dupIndex.value = 0
-    dupDecisions.value = []
-    mode.value = 'duplicates'
+watch(
+  () => [engine.pendingDuplicates.value.length, props.show],
+  ([n, show]) => {
+    if (n > 0 && show) {
+      dupIndex.value = 0
+      dupDecisions.value = []
+      mode.value = 'duplicates'
+    }
   }
-})
+)
 
 function showToast(message) {
   toast.value = { message, id: Date.now() }

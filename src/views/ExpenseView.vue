@@ -21,7 +21,7 @@ onMounted(() => { engine.triggerSync() })
 
 watch(() => engine.pendingDuplicates.value.length, (n) => {
   if (n > 0) showSync.value = true
-})
+}, { immediate: true })
 
 const editing = ref(null)
 const deleteTarget = ref(null)
