@@ -19,10 +19,6 @@ if (!trip.value) {
 
 onMounted(() => { engine.triggerSync() })
 
-watch(() => engine.pendingDuplicates.value.length, (n) => {
-  if (n > 0) showSync.value = true
-}, { immediate: true })
-
 const editing = ref(null)
 const deleteTarget = ref(null)
 const showReset = ref(false)
@@ -33,6 +29,10 @@ const importText = ref('')
 const importError = ref('')
 const importMsg = ref('')
 const localToast = ref({ message: '', id: 0 })
+
+watch(() => engine.pendingDuplicates.value.length, (n) => {
+  if (n > 0) showSync.value = true
+}, { immediate: true })
 
 watch(() => toast.value.id, (id) => {
   if (id > 0) {
