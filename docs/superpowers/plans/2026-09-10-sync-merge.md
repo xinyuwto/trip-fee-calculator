@@ -110,7 +110,7 @@ describe('matchDuplicate', () => {
 
 describe('mergeTrips — record merge matrix (T-M01..M09)', () => {
   it('T-M01: local-only record is merged in', () => {
-    const local = baseTrip(withIds(['e1', 'e2']))
+    const local = baseTrip([mk('e1'), mk('e2', { amount: 6000 })])
     const remote = baseTrip(withIds(['e1']))
     const { merged, duplicates } = mergeTrips(local, remote, [], NOW)
     expect(merged.expenses.map((e) => e.id).sort()).toEqual(['e1', 'e2'])
@@ -118,7 +118,7 @@ describe('mergeTrips — record merge matrix (T-M01..M09)', () => {
   })
   it('T-M02: remote-only record is merged in', () => {
     const local = baseTrip(withIds(['e1']))
-    const remote = baseTrip(withIds(['e1', 'e3']))
+    const remote = baseTrip([mk('e1'), mk('e3', { amount: 7000 })])
     const { merged } = mergeTrips(local, remote, [], NOW)
     expect(merged.expenses.map((e) => e.id).sort()).toEqual(['e1', 'e3'])
   })
@@ -249,7 +249,7 @@ describe('mergeTrips — dedup detection & decisions (T-D01..D11)', () => {
     expect(merged.expenses.map((e) => e.id).sort()).toEqual(['l2', 'r1'])
   })
   it('T-D06: one local-new matching multiple remote records yields multiple pairs', () => {
-    const local = baseTrip([mk('l1'), mk('l2')])
+    const local = baseTrip([mk('l1', { amount: 999 }), mk('l2')])
     const remote = baseTrip([mk('r1'), mk('r4')])
     const { duplicates } = mergeTrips(local, remote, [], NOW)
     expect(duplicates.length).toBe(2) // l2↔r1, l2↔r4
@@ -262,7 +262,7 @@ describe('mergeTrips — dedup detection & decisions (T-D01..D11)', () => {
   })
   it('decided pairs are not re-reported and new decisions can arrive together', () => {
     const R1 = mk('r1'); const L2 = mk('l2')
-    const local = baseTrip([{ ...R1 }, { ...L2 }, mk('l3')])
+    const local = baseTrip([{ ...R1 }, { ...L2 }, mk('l3', { amount: 8000 })])
     const remote = baseTrip([{ ...R1 }])
     const p1 = mergeTrips(local, remote, [], NOW)
     expect(p1.duplicates.length).toBe(1)
@@ -274,15 +274,15 @@ describe('mergeTrips — dedup detection & decisions (T-D01..D11)', () => {
 describe('mergeTrips — mixed scenario (T-M13) & changed flag', () => {
   it('T-M13: mixed adds/edits/deletes both directions converge per rules', () => {
     const local = baseTrip([
-      mk('keep1'),                                  // 双端同持不动
-      mk('editA', { note: 'local-win', updatedAt: t3 }),   // 同 id，本地新 → 本地胜
-      mk('editB', { note: 'local-lose', updatedAt: t1 }),  // 同 id，远端新 → 远端胜
+      mk('keep1', { amount: 1000 }),                  // 双端同持不动
+      mk('editA', { amount: 2000, note: 'local-win', updatedAt: t3 }),  // 同 id，本地新 → 本地胜
+      mk('editB', { amount: 3000, note: 'local-lose', updatedAt: t1 }), // 同 id，远端新 → 远端胜
       mk('lnew1'), mk('lnew2'), mk('lnew3'),       // 本地新增（与远端新增四要素相同 → 候选）
     ], [{ id: 'ldel1', deletedAt: t2 }])            // 本地删除
     const remote = baseTrip([
-      mk('keep1'),
-      mk('editA', { note: 'remote', updatedAt: t2 }),
-      mk('editB', { note: 'remote-win', updatedAt: t2 }),
+      mk('keep1', { amount: 1000 }),
+      mk('editA', { amount: 2000, note: 'remote', updatedAt: t2 }),
+      mk('editB', { amount: 3000, note: 'remote-win', updatedAt: t2 }),
       mk('rnew1'), mk('rnew2'),                     // 远端新增（与本地新增四要素相同 → 候选）
     ], [{ id: 'rdel1', deletedAt: t2 }])            // 远端删除
     const { merged, duplicates, changed } = mergeTrips(local, remote, [], NOW)
