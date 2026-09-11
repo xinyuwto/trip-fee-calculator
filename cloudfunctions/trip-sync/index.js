@@ -5,7 +5,8 @@ const { URL } = require('url')
 const tcb = require('@cloudbase/node-sdk')
 const {
   CODE_RE, MAX_PAYLOAD_BYTES, SCHEMA_VERSION,
-  normalizeCode, validatePayload, payloadBytes, decidePush
+  normalizeCode, validatePayload, payloadBytes, decidePush,
+  migrateTripToV2, mergeTrips
 } = require('./core')
 
 const app = tcb.init({
@@ -88,6 +89,7 @@ async function handlePost(res, req) {
     throw e
   }
   if (!body || typeof body !== 'object') return sendJson(res, 400, { error: 'INVALID_REQUEST' })
+  if (body.mode === 'merge') return handleMerge(res, req, body)
   const code = normalizeCode(body.code)
   if (!CODE_RE.test(code)) return sendJson(res, 400, { error: 'INVALID_CODE' })
   if (!validatePayload(body.payload)) return sendJson(res, 400, { error: 'INVALID_PAYLOAD' })
@@ -128,6 +130,90 @@ async function handlePost(res, req) {
     return sendJson(res, 500, { error: 'INTERNAL_ERROR' })
   }
   sendJson(res, 200, { revision: decision.newRevision })
+}
+
+function resolveMemberName(payload, memberId) {
+  const m = payload && Array.isArray(payload.members)
+    ? payload.members.find((x) => x.id === memberId)
+    : null
+  return (m && typeof m.name === 'string') ? m.name.slice(0, 20) : '未知'
+}
+
+async function handleMerge(res, req, body) {
+  const code = normalizeCode(body.code)
+  if (!CODE_RE.test(code)) return sendJson(res, 400, { error: 'INVALID_CODE' })
+  if (!validatePayload(body.payload)) return sendJson(res, 400, { error: 'INVALID_PAYLOAD' })
+  if (payloadBytes(body.payload) > MAX_PAYLOAD_BYTES) return sendJson(res, 400, { error: 'PAYLOAD_TOO_LARGE' })
+
+  const updatedBy = resolveMemberName(body.payload, body.myMemberId)
+  const now = new Date().toISOString()
+  let existing
+  try {
+    existing = await findDoc(code)
+  } catch (e) {
+    console.error('db read error:', e && e.message)
+    return sendJson(res, 500, { error: 'INTERNAL_ERROR' })
+  }
+
+  // 开启同步：码不存在 → 用本地 payload 创建
+  if (!existing) {
+    const payload = migrateTripToV2(body.payload)
+    const record = { schemaVersion: 2, payload, revision: 1, updatedAt: now, updatedBy }
+    try {
+      await db.collection(COLLECTION).doc(code).set(record)
+    } catch (e) {
+      console.error('db write error:', e && e.message)
+      return sendJson(res, 500, { error: 'INTERNAL_ERROR' })
+    }
+    return sendJson(res, 200, { status: 'merged', payload, revision: 1 })
+  }
+
+  const remoteTrip = migrateTripToV2(existing.payload)
+  const localTrip = migrateTripToV2(body.payload)
+  const decisions = Array.isArray(body.dedupDecisions) ? body.dedupDecisions : []
+  let result
+  try {
+    result = mergeTrips(localTrip, remoteTrip, decisions, now)
+  } catch (e) {
+    console.error('merge error:', e && e.message)
+    return sendJson(res, 500, { error: 'INTERNAL_ERROR' })
+  }
+
+  if (result.changed) {
+    const record = {
+      schemaVersion: 2,
+      payload: result.merged,
+      revision: (existing.revision || 0) + 1,
+      updatedAt: now,
+      updatedBy
+    }
+    try {
+      await db.collection(COLLECTION).doc(code).set(record)
+    } catch (e) {
+      console.error('db write error:', e && e.message)
+      return sendJson(res, 500, { error: 'INTERNAL_ERROR' })
+    }
+    if (result.duplicates.length > 0) {
+      return sendJson(res, 200, {
+        status: 'duplicates_found',
+        payload: result.merged,
+        revision: record.revision,
+        duplicates: result.duplicates
+      })
+    }
+    return sendJson(res, 200, { status: 'merged', payload: result.merged, revision: record.revision })
+  }
+
+  // 无变化：不写库，revision 原样返回
+  if (result.duplicates.length > 0) {
+    return sendJson(res, 200, {
+      status: 'duplicates_found',
+      payload: result.merged,
+      revision: existing.revision || 0,
+      duplicates: result.duplicates
+    })
+  }
+  return sendJson(res, 200, { status: 'merged', payload: result.merged, revision: existing.revision || 0 })
 }
 
 const server = http.createServer(async (req, res) => {
