@@ -412,10 +412,12 @@ function mergeTrips(localTrip, remoteTrip, dedupDecisions = [], nowIso) {
     const rNew = remoteNewIds.has(remoteId)
     if (lNew && rNew) {
       if (String(l.createdAt || '') < String(r.createdAt || '')) {
-        excludedLocal.add(localId)
+        // 本地 createdAt 早 → 保留本地条，远端条加墓碑
+        excludedRemote.add(remoteId)
         extraTombstones.push({ id: remoteId, deletedAt: nowIso })
       } else {
-        excludedLocal.add(localId) // 平局或远端早 → 保留远端，本地条不上云
+        // 远端较早或平局 → 保留远端条，本地条不上云
+        excludedLocal.add(localId)
       }
     } else if (lNew && !rNew) {
       excludedLocal.add(localId)
