@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useTripStore } from '../stores/trip'
-import { validateSyncCode, generateSyncCode, pullTrip, pushTrip } from '../utils/sync'
+import { validateSyncCode, generateSyncCode, pullTrip, mergeSync } from '../utils/sync'
 import ConfirmDialog from './ConfirmDialog.vue'
 
 defineProps({ show: { type: Boolean, default: false } })
@@ -40,15 +40,10 @@ async function handleEnable() {
   if (!trip.value) return
   busy.value = true
   const code = generateSyncCode()
-  const result = await pushTrip({ code, baseRevision: 0, payload: trip.value, updatedBy: myName.value })
+  const result = await mergeSync({ code, payload: trip.value, myMemberId: myMemberId.value })
   busy.value = false
-  if (!result.success) { showToast(result.message); return }
-  setSyncState({
-    code,
-    baseRevision: result.revision,
-    lastSyncedAt: new Date().toISOString(),
-    myMemberId: myMemberId.value
-  })
+  if (!result.success || result.status !== 'merged') { showToast('同步开启失败，请重试'); return }
+  setSyncState({ code, lastSyncedAt: new Date().toISOString(), myMemberId: myMemberId.value })
   mode.value = 'active'
   showToast('同步已开启，把同步码分享给同伴吧')
 }
@@ -106,47 +101,15 @@ async function handlePull() {
 }
 
 async function handlePush() {
-  if (!trip.value) return
-  busy.value = true
-  const result = await pushTrip({
-    code: sync.value.code,
-    baseRevision: sync.value.baseRevision,
-    payload: trip.value,
-    updatedBy: myName.value
-  })
-  busy.value = false
-  if (result.success) {
-    setSyncState({ baseRevision: result.revision, lastSyncedAt: new Date().toISOString() })
-    showToast('推送成功')
-    return
-  }
-  if (result.code === 'REVISION_CONFLICT') {
-    conflict.value = result
-    mode.value = 'conflict'
-    return
-  }
-  showToast(result.message)
+  showToast('同步功能升级中')
 }
 
 async function handleForcePush() {
-  busy.value = true
-  const result = await pushTrip({
-    code: sync.value.code,
-    baseRevision: sync.value.baseRevision,
-    payload: trip.value,
-    updatedBy: myName.value,
-    force: true
-  })
-  busy.value = false
-  if (!result.success) { showToast(result.message); return }
-  setSyncState({ baseRevision: result.revision, lastSyncedAt: new Date().toISOString() })
-  conflict.value = null
-  mode.value = 'active'
-  showToast('已用本地数据覆盖远端')
+  showToast('同步功能升级中')
 }
 
 async function handlePullRemoteOnConflict() {
-  await handlePull()
+  showToast('同步功能升级中')
 }
 
 async function copyCode() {

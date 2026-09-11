@@ -43,23 +43,31 @@ export async function pullTrip(code) {
   }
 }
 
-export async function pushTrip({ code, baseRevision, payload, updatedBy, force = false }) {
+export function matchDuplicate(a, b) {
+  if (!a || !b) return false
+  if (a.payerId !== b.payerId || a.amount !== b.amount || a.purpose !== b.purpose) return false
+  if (!Array.isArray(a.beneficiaryIds) || !Array.isArray(b.beneficiaryIds)) return false
+  if (a.beneficiaryIds.length !== b.beneficiaryIds.length) return false
+  const setB = new Set(b.beneficiaryIds)
+  return a.beneficiaryIds.every((id) => setB.has(id))
+}
+
+export function findDuplicateRecords(expense, records = [], excludeId = null) {
+  return (records || []).filter((r) => r && r.id !== excludeId && matchDuplicate(expense, r))
+}
+
+export async function mergeSync({ code, payload, myMemberId, dedupDecisions }) {
   const normalized = String(code == null ? '' : code).trim().toUpperCase()
-  const { resp, body } = await fetchJson(SYNC_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: normalized, baseRevision, payload, updatedBy, force })
-  })
-  if (!resp) return { success: false, code: 'NETWORK_ERROR', message: '网络连接失败，请检查网络' }
-  if (resp.status === 409 && body) {
-    return {
-      success: false,
-      code: 'REVISION_CONFLICT',
-      remoteRevision: body.remoteRevision,
-      remoteUpdatedAt: body.remoteUpdatedAt,
-      remoteUpdatedBy: body.remoteUpdatedBy,
-      message: '远端已有更新版本'
-    }
+  let resp, body
+  try {
+    resp = await fetch(SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'merge', code: normalized, payload, myMemberId, dedupDecisions })
+    })
+    body = await resp.json().catch(() => null)
+  } catch {
+    return { success: false, code: 'NETWORK_ERROR', message: '网络连接失败，请检查网络' }
   }
   if (resp.status === 404) return { success: false, code: 'TRIP_NOT_FOUND', message: '同步码不存在，请核对' }
   if (resp.status === 400) {
@@ -69,5 +77,11 @@ export async function pushTrip({ code, baseRevision, payload, updatedBy, force =
     return { success: false, code: 'INVALID_REQUEST', message: '请求参数不正确' }
   }
   if (!resp.ok || !body) return { success: false, code: 'NETWORK_ERROR', message: '同步服务暂时不可用' }
-  return { success: true, revision: body.revision }
+  return {
+    success: true,
+    status: body.status,
+    payload: body.payload,
+    revision: body.revision,
+    duplicates: Array.isArray(body.duplicates) ? body.duplicates : []
+  }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { SYNC_URL, validateSyncCode, generateSyncCode, pullTrip, pushTrip } from '../sync'
+import { SYNC_URL, validateSyncCode, generateSyncCode, pullTrip, mergeSync, matchDuplicate, findDuplicateRecords } from '../sync'
 
 const okResp = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body })
 
@@ -68,36 +68,55 @@ describe('pullTrip', () => {
   })
 })
 
-describe('pushTrip', () => {
-  it('returns revision on success and posts correct body', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(okResp(200, { revision: 4 }))
+describe('mergeSync', () => {
+  const localTrip = { name: 't', members: [{ id: 'm1', name: '甲' }, { id: 'm2', name: '乙' }], expenses: [] }
+
+  it('returns merged payload and posts correct body', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResp(200, { status: 'merged', payload: localTrip, revision: 3 }))
     vi.stubGlobal('fetch', fetchMock)
-    const result = await pushTrip({ code: 'k3x9qa2m', baseRevision: 3, payload: validTrip, updatedBy: '甲' })
-    expect(result).toEqual({ success: true, revision: 4 })
+    const result = await mergeSync({ code: 'k3x9qa2m', payload: localTrip, myMemberId: 'm1' })
+    expect(result).toEqual({ success: true, status: 'merged', payload: localTrip, revision: 3, duplicates: [] })
     expect(fetchMock).toHaveBeenCalledWith(SYNC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: 'K3X9QA2M', baseRevision: 3, payload: validTrip, updatedBy: '甲', force: false })
+      body: JSON.stringify({ mode: 'merge', code: 'K3X9QA2M', payload: localTrip, myMemberId: 'm1', dedupDecisions: undefined })
     })
   })
-  it('returns conflict details on 409', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(okResp(409, {
-      error: 'REVISION_CONFLICT', remoteRevision: 5, remoteUpdatedAt: 't2', remoteUpdatedBy: '乙'
-    })))
-    const result = await pushTrip({ code: 'K3X9QA2M', baseRevision: 3, payload: validTrip, updatedBy: '甲' })
-    expect(result.success).toBe(false)
-    expect(result.code).toBe('REVISION_CONFLICT')
-    expect(result.remoteRevision).toBe(5)
-    expect(result.remoteUpdatedBy).toBe('乙')
+  it('returns duplicates list on duplicates_found', async () => {
+    const dups = [{ local: { id: 'a' }, remote: { id: 'b' } }]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(okResp(200, { status: 'duplicates_found', payload: localTrip, revision: 5, duplicates: dups })))
+    const result = await mergeSync({ code: 'K3X9QA2M', payload: localTrip, myMemberId: 'm1' })
+    expect(result.success).toBe(true)
+    expect(result.status).toBe('duplicates_found')
+    expect(result.duplicates).toEqual(dups)
   })
-  it('returns PAYLOAD_TOO_LARGE on 400 PAYLOAD_TOO_LARGE', async () => {
+  it('sends dedupDecisions when provided', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResp(200, { status: 'merged', payload: localTrip, revision: 6 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const decisions = [{ localId: 'a', remoteId: 'b', action: 'duplicate' }]
+    await mergeSync({ code: 'K3X9QA2M', payload: localTrip, myMemberId: 'm1', dedupDecisions: decisions })
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).dedupDecisions).toEqual(decisions)
+  })
+  it('maps error statuses to result objects', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(okResp(404, { error: 'TRIP_NOT_FOUND' })))
+    expect((await mergeSync({ code: 'K3X9QA2M', payload: localTrip, myMemberId: 'm1' })).code).toBe('TRIP_NOT_FOUND')
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(okResp(400, { error: 'PAYLOAD_TOO_LARGE' })))
-    const result = await pushTrip({ code: 'K3X9QA2M', baseRevision: 3, payload: validTrip, updatedBy: '甲' })
-    expect(result.code).toBe('PAYLOAD_TOO_LARGE')
-  })
-  it('returns NETWORK_ERROR when fetch rejects', async () => {
+    expect((await mergeSync({ code: 'K3X9QA2M', payload: localTrip, myMemberId: 'm1' })).code).toBe('PAYLOAD_TOO_LARGE')
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fail')))
-    const result = await pushTrip({ code: 'K3X9QA2M', baseRevision: 0, payload: validTrip, updatedBy: '甲' })
-    expect(result.code).toBe('NETWORK_ERROR')
+    expect((await mergeSync({ code: 'K3X9QA2M', payload: localTrip, myMemberId: 'm1' })).code).toBe('NETWORK_ERROR')
+  })
+})
+
+describe('matchDuplicate / findDuplicateRecords (frontend copy)', () => {
+  const rec = (id, over = {}) => ({ id, purpose: '正餐', amount: 5000, payerId: 'm1', beneficiaryIds: ['m1', 'm2'], ...over })
+  it('matches on four factors, ignores beneficiary order', () => {
+    expect(matchDuplicate(rec('a'), rec('b'))).toBe(true)
+    expect(matchDuplicate(rec('a'), rec('b', { beneficiaryIds: ['m2', 'm1'] }))).toBe(true)
+    expect(matchDuplicate(rec('a'), rec('b', { amount: 5001 }))).toBe(false)
+  })
+  it('findDuplicateRecords excludes by id and returns all matches', () => {
+    const records = [rec('a'), rec('b'), rec('c', { amount: 999 })]
+    expect(findDuplicateRecords(rec('x'), records).map((r) => r.id)).toEqual(['a', 'b'])
+    expect(findDuplicateRecords(rec('a'), records, 'a').map((r) => r.id)).toEqual(['b'])
   })
 })
