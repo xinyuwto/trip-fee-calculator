@@ -2,12 +2,19 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTripStore } from '../stores/trip'
+import SyncDialog from '../components/SyncDialog.vue'
 
 const router = useRouter()
 const { trip, initTrip } = useTripStore()
 const memberCount = ref(5)
 const memberNames = ref(['成员1', '成员2', '成员3', '成员4', '成员5'])
 const tripName = ref('我的旅行')
+const showJoin = ref(false)
+
+function onJoined() {
+  showJoin.value = false
+  router.replace('/expense')
+}
 
 const CHINESE_NUMS = ['壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖', '拾',
   '拾壹', '拾贰', '拾叁', '拾肆', '拾伍', '拾陆', '拾柒', '拾捌', '拾玖', '贰拾']
@@ -81,11 +88,16 @@ function handleStart() {
 
     <button class="btn vermilion block" @click="handleStart">开 始 旅 行</button>
 
+    <button class="btn ghost block" style="margin-top:12px;color:var(--ink-soft);" @click="showJoin = true">加 入 旅 行</button>
+    <p class="join-hint">已有同伴开启了同步？输入同步码加入</p>
+
     <div class="foot-note">
       <strong>说明</strong><br>
       设定旅行名与成员后进入记账页 · 数据仅存本地浏览器
     </div>
   </div>
+
+  <SyncDialog :show="showJoin" join-only @joined="onJoined" @close="showJoin = false" />
 </template>
 
 <style scoped>
@@ -174,4 +186,7 @@ function handleStart() {
 /* foot note */
 .foot-note { margin-top: 24px; padding: 14px; border-top: 1px dashed var(--rule); font-size: 10.5px; color: var(--ink-soft); line-height: 1.7; text-align: center; font-family: var(--font-mono); }
 .foot-note strong { color: var(--ink); font-family: var(--font-title); font-weight: 700; }
+
+.join-hint { text-align: center; font-size: 11px; color: var(--ink-faint); margin-top: 8px; font-family: var(--font-mono); }
+
 </style>
