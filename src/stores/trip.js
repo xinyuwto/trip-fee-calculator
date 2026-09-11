@@ -18,7 +18,7 @@ function createDefaultMembers(count) {
 }
 
 function defaultSyncState() {
-  return { code: null, baseRevision: 0, lastSyncedAt: null, myMemberId: null }
+  return { code: null, myMemberId: null, lastSyncedAt: null }
 }
 
 function loadSyncState() {
@@ -28,10 +28,8 @@ function loadSyncState() {
     const s = JSON.parse(raw)
     if (!s || typeof s !== 'object') return defaultSyncState()
     if (s.code !== null && !/^[2-9A-HJKMNP-Z]{8}$/.test(s.code)) return defaultSyncState()
-    if (!Number.isInteger(s.baseRevision) || s.baseRevision < 0) return defaultSyncState()
     return {
       code: s.code,
-      baseRevision: s.baseRevision,
       lastSyncedAt: typeof s.lastSyncedAt === 'string' ? s.lastSyncedAt : null,
       myMemberId: typeof s.myMemberId === 'string' ? s.myMemberId : null
     }
@@ -48,6 +46,19 @@ function saveSyncState(state) {
   }
 }
 
+function migrateTripData(data) {
+  const d = { ...data }
+  if (!Array.isArray(d.deletedIds)) d.deletedIds = []
+  if (typeof d.metaUpdatedAt !== 'string') d.metaUpdatedAt = d.createdAt || new Date(0).toISOString()
+  if (Array.isArray(d.expenses)) {
+    d.expenses = d.expenses.map((e) => ({
+      ...e,
+      updatedAt: typeof e.updatedAt === 'string' ? e.updatedAt : (e.createdAt || new Date(0).toISOString())
+    }))
+  }
+  return d
+}
+
 function loadFromStorage() {
   try {
     const raw = localStorage.getItem(TRIP_KEY)
@@ -61,7 +72,7 @@ function loadFromStorage() {
     for (const e of data.expenses) {
       if (!e.id || !e.purpose || !e.amount || !e.payerId || !Array.isArray(e.beneficiaryIds)) return null
     }
-    return data
+    return migrateTripData(data)
   } catch {
     return null
   }
@@ -97,12 +108,15 @@ export function useTripStore() {
       name,
       members,
       expenses: [],
-      createdAt: new Date().toISOString()
+      deletedIds: [],
+      createdAt: new Date().toISOString(),
+      metaUpdatedAt: new Date().toISOString()
     }
   }
 
   function addExpense({ purpose, amount, payerId, beneficiaryIds, createdAt, note }) {
     if (!trip.value) return
+    const ts = createdAt || new Date().toISOString()
     trip.value.expenses.push({
       id: uuid(),
       purpose,
@@ -110,7 +124,8 @@ export function useTripStore() {
       payerId,
       beneficiaryIds,
       note: note || '',
-      createdAt: createdAt || new Date().toISOString()
+      createdAt: ts,
+      updatedAt: ts
     })
     toast.value = { message: '添加成功', id: Date.now() }
   }
@@ -121,13 +136,16 @@ export function useTripStore() {
     if (idx === -1) return
     const roundedUpdates = { ...updates }
     if (roundedUpdates.amount !== undefined) roundedUpdates.amount = Math.round(roundedUpdates.amount)
+    roundedUpdates.updatedAt = new Date().toISOString()
     Object.assign(trip.value.expenses[idx], roundedUpdates)
     toast.value = { message: '修改成功', id: Date.now() }
   }
 
   function removeExpense(id) {
     if (!trip.value) return
-    trip.value.expenses = trip.value.expenses.filter(e => e.id !== id)
+    if (!trip.value.deletedIds) trip.value.deletedIds = []
+    trip.value.deletedIds.push({ id, deletedAt: new Date().toISOString() })
+    trip.value.expenses = trip.value.expenses.filter((e) => e.id !== id)
   }
 
   function resetTrip() {
@@ -167,7 +185,7 @@ export function useTripStore() {
           return { success: false, error: '费用记录不完整' }
         }
       }
-      trip.value = data
+      trip.value = migrateTripData(data)
       return { success: true }
     } catch {
       return { success: false, error: 'JSON 解析失败' }

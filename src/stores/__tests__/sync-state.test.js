@@ -3,12 +3,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 const SYNC_KEY = 'trip-fee-calculator-sync'
 const DATA_KEY = 'trip-fee-calculator-data'
 
-const validSync = { code: 'K3X9QA2M', baseRevision: 3, lastSyncedAt: '2026-09-09T10:00:00.000Z', myMemberId: 'm1' }
+const validSync = { code: 'K3X9QA2M', lastSyncedAt: '2026-09-09T10:00:00.000Z', myMemberId: 'm1' }
 const validTrip = {
   name: '测试旅行',
   members: [{ id: 'm1', name: '甲' }, { id: 'm2', name: '乙' }],
   expenses: []
 }
+const defaultSync = { code: null, myMemberId: null, lastSyncedAt: null }
 
 let useTripStore
 
@@ -18,7 +19,7 @@ beforeEach(async () => {
   useTripStore = (await import('../trip')).useTripStore
 })
 
-describe('sync state persistence', () => {
+describe('sync state persistence (v2)', () => {
   it('loads synced state from localStorage on first store access', () => {
     localStorage.setItem(SYNC_KEY, JSON.stringify(validSync))
     const { sync } = useTripStore()
@@ -27,50 +28,58 @@ describe('sync state persistence', () => {
 
   it('returns defaults when no sync state stored', () => {
     const { sync } = useTripStore()
-    expect(sync.value).toEqual({ code: null, baseRevision: 0, lastSyncedAt: null, myMemberId: null })
+    expect(sync.value).toEqual(defaultSync)
   })
 
   it('rejects garbage sync state and falls back to defaults', () => {
-    localStorage.setItem(SYNC_KEY, JSON.stringify({ code: 'BAD!', baseRevision: -1 }))
+    localStorage.setItem(SYNC_KEY, JSON.stringify({ code: 'BAD!', lastSyncedAt: 12345 }))
     const { sync } = useTripStore()
-    expect(sync.value).toEqual({ code: null, baseRevision: 0, lastSyncedAt: null, myMemberId: null })
+    expect(sync.value).toEqual(defaultSync)
+  })
+
+  it('ignores v1 baseRevision field on load (v2 shape)', () => {
+    localStorage.setItem(SYNC_KEY, JSON.stringify({ code: 'K3X9QA2M', baseRevision: 5, myMemberId: 'm1' }))
+    const { sync } = useTripStore()
+    expect(sync.value).toEqual({ code: 'K3X9QA2M', myMemberId: 'm1', lastSyncedAt: null })
   })
 
   it('setSyncState merges partial and persists', () => {
     const { sync, setSyncState } = useTripStore()
-    setSyncState({ code: 'K3X9QA2M', baseRevision: 1 })
+    setSyncState({ code: 'K3X9QA2M', myMemberId: 'm1' })
     expect(sync.value.code).toBe('K3X9QA2M')
-    expect(sync.value.myMemberId).toBeNull()
+    expect(sync.value.myMemberId).toBe('m1')
+    expect(sync.value.lastSyncedAt).toBeNull()
     const raw = JSON.parse(localStorage.getItem(SYNC_KEY))
-    expect(raw).toEqual({ code: 'K3X9QA2M', baseRevision: 1, lastSyncedAt: null, myMemberId: null })
+    expect(raw).toEqual({ code: 'K3X9QA2M', myMemberId: 'm1', lastSyncedAt: null })
   })
 
   it('clearSyncState resets to defaults and persists', () => {
     const { sync, setSyncState, clearSyncState } = useTripStore()
-    setSyncState({ code: 'K3X9QA2M', baseRevision: 2, myMemberId: 'm1' })
+    setSyncState({ code: 'K3X9QA2M', myMemberId: 'm1', lastSyncedAt: '2026-09-09T10:00:00.000Z' })
     clearSyncState()
-    expect(sync.value).toEqual({ code: null, baseRevision: 0, lastSyncedAt: null, myMemberId: null })
+    expect(sync.value).toEqual(defaultSync)
     expect(JSON.parse(localStorage.getItem(SYNC_KEY))).toEqual(sync.value)
   })
 
   it('resetTrip clears both trip and sync state', () => {
     const { trip, sync, initTrip, setSyncState, resetTrip } = useTripStore()
     initTrip('测试', ['甲', '乙'])
-    setSyncState({ code: 'K3X9QA2M', baseRevision: 2, myMemberId: 'm1' })
+    setSyncState({ code: 'K3X9QA2M', myMemberId: 'm1' })
     resetTrip()
     expect(trip.value).toBeNull()
-    expect(sync.value).toEqual({ code: null, baseRevision: 0, lastSyncedAt: null, myMemberId: null })
+    expect(sync.value).toEqual(defaultSync)
     expect(JSON.parse(localStorage.getItem(SYNC_KEY))).toEqual(sync.value)
   })
 
   it('importData replaces trip but keeps sync state', () => {
     const { trip, sync, initTrip, setSyncState, importData } = useTripStore()
     initTrip('旧旅行', ['甲', '乙'])
-    setSyncState({ code: 'K3X9QA2M', baseRevision: 2, myMemberId: 'm1' })
+    setSyncState({ code: 'K3X9QA2M', myMemberId: 'm1', lastSyncedAt: '2026-09-09T10:00:00.000Z' })
     const result = importData(JSON.stringify(validTrip))
     expect(result.success).toBe(true)
     expect(trip.value.name).toBe('测试旅行')
     expect(sync.value.code).toBe('K3X9QA2M')
-    expect(sync.value.baseRevision).toBe(2)
+    expect(sync.value.myMemberId).toBe('m1')
+    expect(sync.value.lastSyncedAt).toBe('2026-09-09T10:00:00.000Z')
   })
 })
