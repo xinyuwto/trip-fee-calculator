@@ -1,29 +1,47 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useTripStore } from '../stores/trip'
+import { useSyncEngine } from '../composables/useSyncEngine'
 import { validateSyncCode, generateSyncCode, pullTrip, mergeSync } from '../utils/sync'
 import ConfirmDialog from './ConfirmDialog.vue'
 
-defineProps({ show: { type: Boolean, default: false } })
-const emit = defineEmits(['close'])
+const props = defineProps({
+  show: { type: Boolean, default: false },
+  joinOnly: { type: Boolean, default: false }
+})
+const emit = defineEmits(['close', 'joined'])
+const router = useRouter()
 
 const { trip, sync, toast, setSyncState, clearSyncState, importData } = useTripStore()
+const engine = useSyncEngine()
 
-// idle | active | join-summary | conflict
-const mode = ref(sync.value.code ? 'active' : 'idle')
+// joinOnly 模式直接进入输码；普通模式按 sync 状态决定
+const mode = ref(props.joinOnly ? 'idle' : (sync.value.code ? 'active' : 'idle'))
 const inputCode = ref('')
 const myMemberId = ref(sync.value.myMemberId || '')
 const joinPulled = ref(null)
 const joinCode = ref('')
-const conflict = ref(null)
 const busy = ref(false)
 const confirmOverwrite = ref(false)
 const confirmUnlink = ref(false)
+const dupIndex = ref(0)
+const dupDecisions = ref([])
 
 const myName = computed(() =>
-  trip.value?.members.find(m => m.id === myMemberId.value)?.name || '未知'
+  trip.value?.members.find((m) => m.id === (sync.value.myMemberId || myMemberId.value))?.name || '未知'
 )
 const codeValid = computed(() => validateSyncCode(inputCode.value))
+const currentDup = computed(() => engine.pendingDuplicates.value[dupIndex.value] || null)
+
+// 自动同步发现重复项时（ExpenseView 自动打开本弹窗），切换到去重确认视图
+watch(() => engine.pendingDuplicates.value.length, (n) => {
+  if (n > 0 && props.show) {
+    dupIndex.value = 0
+    dupDecisions.value = []
+    mode.value = 'duplicates'
+  }
+})
 
 function showToast(message) {
   toast.value = { message, id: Date.now() }
@@ -60,9 +78,7 @@ async function handleJoinPull() {
 }
 
 function applyOverwrite() {
-  // join-summary 与 conflict/active 的拉取共用确认弹窗，按 mode 分发
   if (mode.value === 'join-summary') applyJoin()
-  else applyPull()
 }
 
 function applyJoin() {
@@ -71,45 +87,50 @@ function applyJoin() {
   if (!r.success) { showToast(r.error); mode.value = 'idle'; return }
   setSyncState({
     code: joinCode.value,
-    baseRevision: joinPulled.value.revision,
     lastSyncedAt: new Date().toISOString(),
     myMemberId: myMemberId.value
   })
   mode.value = 'active'
   showToast('已加入同步')
+  if (props.joinOnly) emit('joined')
 }
 
-function applyPull() {
-  confirmOverwrite.value = false
-  const r = importData(JSON.stringify(joinPulled.value.payload))
-  if (!r.success) { showToast(r.error); return }
-  setSyncState({ baseRevision: joinPulled.value.revision, lastSyncedAt: new Date().toISOString() })
-  conflict.value = null
-  mode.value = 'active'
-  showToast('已拉取最新数据')
-}
-
-async function handlePull() {
+async function handleSync() {
   busy.value = true
-  const result = await pullTrip(sync.value.code)
+  await engine.triggerSync()
   busy.value = false
-  if (!result.success) { showToast(result.message); return }
-  if (result.revision === sync.value.baseRevision) { showToast('本地已是最新版本'); return }
-  joinPulled.value = result
-  joinCode.value = sync.value.code
-  confirmOverwrite.value = true
+  if (engine.status.value === 'pending') {
+    dupIndex.value = 0
+    dupDecisions.value = []
+    mode.value = 'duplicates'
+  } else if (engine.status.value === 'success') {
+    showToast('同步成功')
+  } else if (engine.status.value === 'error') {
+    showToast(engine.errorMessage.value || '同步失败')
+  }
 }
 
-async function handlePush() {
-  showToast('同步功能升级中')
+function decideDup(action) {
+  const dup = currentDup.value
+  if (!dup) return
+  dupDecisions.value.push({ localId: dup.local.id, remoteId: dup.remote.id, action })
+  if (dupIndex.value < engine.pendingDuplicates.value.length - 1) {
+    dupIndex.value++
+    return
+  }
+  engine.resolveDuplicates(dupDecisions.value).then(() => {
+    dupDecisions.value = []
+    mode.value = engine.status.value === 'pending' ? 'duplicates' : 'active'
+    dupIndex.value = 0
+    if (engine.status.value === 'success') showToast('去重完成，同步成功')
+  })
 }
 
-async function handleForcePush() {
-  showToast('同步功能升级中')
-}
-
-async function handlePullRemoteOnConflict() {
-  showToast('同步功能升级中')
+function dismissDups() {
+  engine.dismissDuplicates()
+  dupIndex.value = 0
+  dupDecisions.value = []
+  mode.value = 'active'
 }
 
 async function copyCode() {
@@ -136,16 +157,18 @@ function doUnlink() {
     <div class="dialog">
       <h3>旅 行 同 步</h3>
 
-      <!-- 未开启 -->
+      <!-- 未开启（joinOnly 模式只显示输码加入） -->
       <template v-if="mode === 'idle'">
-        <p class="hint">开启后生成 8 位同步码，同伴输入即可同步账单数据。</p>
-        <label class="field-label">你 的 身 份</label>
-        <select v-model="myMemberId" class="select">
-          <option value="" disabled>选择成员</option>
-          <option v-for="m in trip?.members" :key="m.id" :value="m.id">{{ m.name }}</option>
-        </select>
-        <button class="btn vermilion block" :disabled="busy" @click="handleEnable">开 启 同 步</button>
-        <div class="divider"><span>或</span></div>
+        <template v-if="!joinOnly">
+          <p class="hint">开启后生成 8 位同步码，同伴输入即可同步账单数据。</p>
+          <label class="field-label">你 的 身 份</label>
+          <select v-model="myMemberId" class="select">
+            <option value="" disabled>选择成员</option>
+            <option v-for="m in trip?.members" :key="m.id" :value="m.id">{{ m.name }}</option>
+          </select>
+          <button class="btn vermilion block" :disabled="busy" @click="handleEnable">开 启 同 步</button>
+          <div class="divider"><span>或</span></div>
+        </template>
         <label class="field-label">输 码 加 入</label>
         <input
           v-model="inputCode" class="input mono" maxlength="8"
@@ -178,21 +201,25 @@ function doUnlink() {
         <div class="code-display" @click="copyCode">{{ sync.code }}</div>
         <p class="hint">点击同步码复制，分享给同伴</p>
         <div class="meta-line">我：{{ myName }} · 上次同步 {{ fmtTime(sync.lastSyncedAt) }}</div>
-        <div class="form-actions">
-          <button class="btn block" :disabled="busy" @click="handlePull">拉 取</button>
-          <button class="btn vermilion block" :disabled="busy" @click="handlePush">推 送</button>
-        </div>
+        <button class="btn vermilion block" :disabled="busy" @click="handleSync">同 步</button>
         <button class="link-danger" @click="confirmUnlink = true">解除同步</button>
       </template>
 
-      <!-- 冲突 -->
-      <template v-else-if="mode === 'conflict'">
-        <p class="hint">远端已被更新（{{ conflict.remoteUpdatedBy }} · {{ fmtTime(conflict.remoteUpdatedAt) }} · 第 {{ conflict.remoteRevision }} 版），本地基于第 {{ sync.baseRevision }} 版。</p>
-        <div class="form-actions">
-          <button class="btn block" :disabled="busy" @click="handlePullRemoteOnConflict">拉取远端</button>
-          <button class="btn vermilion block" :disabled="busy" @click="handleForcePush">用我的覆盖</button>
+      <!-- 重复确认（逐条） -->
+      <template v-else-if="mode === 'duplicates' && currentDup">
+        <p class="hint">发现疑似重复记录（{{ dupIndex + 1 }} / {{ engine.pendingDuplicates.length }} 条）：</p>
+        <div class="dup-card">
+          <div class="dup-title">本 地</div>
+          <div class="dup-line">{{ currentDup.local.purpose }} · ¥{{ (currentDup.local.amount / 100).toFixed(2) }}</div>
+          <div class="dup-title" style="margin-top:8px">远 端</div>
+          <div class="dup-line">{{ currentDup.remote.purpose }} · ¥{{ (currentDup.remote.amount / 100).toFixed(2) }}</div>
         </div>
-        <button class="link-back" @click="conflict = null; mode = 'active'">暂不处理</button>
+        <p class="hint">两笔记录的支付人、受益人、金额、项目完全相同。是重复记录吗？</p>
+        <div class="form-actions">
+          <button class="btn block" @click="decideDup('keep')">保留两条</button>
+          <button class="btn vermilion block" @click="decideDup('duplicate')">是重复，去重</button>
+        </div>
+        <button class="link-back" @click="dismissDups">稍后处理</button>
       </template>
 
       <button class="close" @click="emit('close')">✕</button>
@@ -241,6 +268,9 @@ function doUnlink() {
 .summary .row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; }
 .summary .row span { color: var(--ink-soft); }
 .summary .row strong { font-family: var(--font-title); }
+.dup-card { border: 1px dashed var(--rule); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+.dup-title { font-size: 10.5px; color: var(--ink-faint); letter-spacing: 2px; font-family: var(--font-title); }
+.dup-line { font-family: var(--font-mono); font-size: 14px; color: var(--ink); }
 .divider { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; color: var(--ink-faint); font-size: 11px; }
 .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
 .form-actions { display: flex; gap: 10px; }
@@ -257,8 +287,5 @@ function doUnlink() {
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .link-danger { display: block; width: 100%; background: none; border: none; color: var(--vermilion); font-size: 12.5px; padding: 8px; cursor: pointer; font-family: var(--font-body); }
 .link-back { display: block; width: 100%; background: none; border: none; color: var(--ink-soft); font-size: 12.5px; padding: 8px; cursor: pointer; font-family: var(--font-body); }
-.close {
-  position: absolute; top: 10px; right: 10px; background: none; border: none;
-  color: var(--ink-faint); font-size: 16px; cursor: pointer; padding: 4px;
-}
+.close { position: absolute; top: 10px; right: 10px; background: none; border: none; color: var(--ink-faint); font-size: 16px; cursor: pointer; padding: 4px; }
 </style>

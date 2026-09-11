@@ -1,18 +1,27 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTripStore } from '../stores/trip'
 import ExpenseForm from '../components/ExpenseForm.vue'
 import ExpenseList from '../components/ExpenseList.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SyncDialog from '../components/SyncDialog.vue'
+import SyncStatus from '../components/SyncStatus.vue'
+import { useSyncEngine } from '../composables/useSyncEngine'
 
 const router = useRouter()
 const { trip, toast, addExpense, updateExpense, removeExpense, resetTrip, exportData, importData } = useTripStore()
+const engine = useSyncEngine()
 
 if (!trip.value) {
   router.replace('/')
 }
+
+onMounted(() => { engine.triggerSync() })
+
+watch(() => engine.pendingDuplicates.value.length, (n) => {
+  if (n > 0) showSync.value = true
+})
 
 const editing = ref(null)
 const deleteTarget = ref(null)
@@ -43,6 +52,7 @@ function handleSave(expense) {
   } else {
     addExpense(expense)
   }
+  engine.triggerSync()
 }
 
 function handleEdit(expense) {
@@ -54,6 +64,7 @@ function handleDelete() {
   if (deleteTarget.value) {
     removeExpense(deleteTarget.value.id)
     deleteTarget.value = null
+    engine.triggerSync()
   }
 }
 
@@ -99,7 +110,16 @@ function handleImport() {
           <div class="rh-title">{{ trip.name }}</div>
           <div class="rh-sub">EXPENSE · 记账流水</div>
         </div>
-        <div class="rh-stamp indigo">记账中</div>
+        <span class="rh-top-right">
+          <span class="rh-stamp indigo">记账中</span>
+          <SyncStatus
+            :status="engine.status.value"
+            :error="engine.errorMessage.value"
+            :pending-count="engine.pendingDuplicates.value.length"
+            @retry="engine.triggerSync()"
+            @open="showSync = true"
+          />
+        </span>
       </div>
       <div class="rh-meta">
         <span>step 2 / 4</span>
@@ -192,6 +212,7 @@ function handleImport() {
   letter-spacing: 1px; opacity: .85; white-space: nowrap; flex-shrink: 0;
 }
 .rh-stamp.indigo { border-color: var(--indigo); color: var(--indigo); }
+.rh-top-right { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
 .rh-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .rh-btn {
   font-family: var(--font-body); font-size: 12px; font-weight: 500;
