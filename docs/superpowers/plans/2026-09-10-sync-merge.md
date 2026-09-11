@@ -298,6 +298,7 @@ describe('mergeTrips — mixed scenario (T-M13) & changed flag', () => {
     expect(merged.deletedIds.map((d) => d.id).sort()).toEqual(['ldel1', 'rdel1'])
   })
 })
+```
 
 - [ ] **Step 2: 运行确认失败**
 
