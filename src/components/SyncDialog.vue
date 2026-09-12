@@ -67,6 +67,8 @@ async function handleEnable() {
   setSyncState({ code, lastSyncedAt: new Date().toISOString(), myMemberId: myMemberId.value })
   mode.value = 'active'
   showToast('同步已开启，把同步码分享给同伴吧')
+  // 立即跑一次无变化合并，让状态芯片显示"已同步"（幂等，走串行队列）
+  engine.triggerSync()
 }
 
 async function handleJoinPull() {
@@ -210,7 +212,7 @@ function doUnlink() {
 
       <!-- 重复确认（逐条） -->
       <template v-else-if="mode === 'duplicates' && currentDup">
-        <p class="hint">发现疑似重复记录（{{ dupIndex + 1 }} / {{ engine.pendingDuplicates.length }} 条）：</p>
+        <p class="hint">发现疑似重复记录（{{ dupIndex + 1 }} / {{ engine.pendingDuplicates.value.length }} 条）：</p>
         <div class="dup-card">
           <div class="dup-title">本 地</div>
           <div class="dup-line">{{ currentDup.local.purpose }} · ¥{{ (currentDup.local.amount / 100).toFixed(2) }}</div>
