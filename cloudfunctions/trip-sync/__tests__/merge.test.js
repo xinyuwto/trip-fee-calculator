@@ -162,7 +162,7 @@ describe('mergeTrips — dedup detection & decisions (T-D01..D11)', () => {
     const remote = baseTrip([{ ...L1 }, { ...R3 }])
     const phase1 = mergeTrips(local, remote, [], NOW)
     expect(phase1.duplicates).toEqual([{ local: L1, remote: R3 }])
-    expect(phase1.merged.expenses.map((e) => e.id)).toEqual(['l1']) // 远端候选被排除出 merged
+    expect(phase1.merged.expenses.map((e) => e.id).sort()).toEqual(['l1', 'r3']) // 远端候选保留在 merged（云端不动），等用户裁决
     const phase2 = mergeTrips(local, remote, [{ localId: 'l1', remoteId: 'r3', action: 'duplicate' }], NOW)
     expect(phase2.merged.expenses.map((e) => e.id)).toEqual(['l1'])
     expect(phase2.merged.deletedIds).toEqual([{ id: 'r3', deletedAt: NOW }])
@@ -238,10 +238,10 @@ describe('mergeTrips — mixed scenario (T-M13) & changed flag', () => {
     ], [{ id: 'rdel1', deletedAt: t2 }])            // 远端删除
     const { merged, duplicates, changed } = mergeTrips(local, remote, [], NOW)
     expect(duplicates.length).toBe(6) // lnew1-3 × rnew1-2 全部互为候选
-    expect(changed).toBe(true)
-    // 候选被排除出 merged，只保留无争议部分
-    const ids = merged.expenses.map((e) => e.id)
-    expect(ids).toEqual(['keep1', 'editA', 'editB'])
+    expect(changed).toBe(true) // editA 本地胜 + ldel1 墓碑并集与远端不同
+    // 本地候选排除出 merged；远端新增候选保留在 merged（云端不动），等用户裁决
+    const ids = merged.expenses.map((e) => e.id).sort()
+    expect(ids).toEqual(['editA', 'editB', 'keep1', 'rnew1', 'rnew2'])
     const editA = merged.expenses.find((e) => e.id === 'editA')
     const editB = merged.expenses.find((e) => e.id === 'editB')
     expect(editA.note).toBe('local-win')

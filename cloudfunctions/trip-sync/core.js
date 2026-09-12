@@ -125,7 +125,7 @@ function mergeTrips(localTrip, remoteTrip, dedupDecisions = [], nowIso) {
     pairSeen.add(key)
     duplicates.push({ local: l, remote: r })
     excludedLocal.add(l.id)
-    excludedRemote.add(r.id)
+    // 远端候选保留在 merged（云端不动），等用户裁决（spec §4）
   }
   for (const id of localNewIds) {
     const l = localById.get(id)
