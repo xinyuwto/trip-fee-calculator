@@ -59,6 +59,11 @@ function handleStart() {
       </div>
     </div>
 
+    <button class="join-entry" @click="showJoin = true">
+      <span class="join-title">加 入 旅 行</span>
+      <span class="join-sub">已有同伴的同步码？输入即可加入</span>
+    </button>
+
     <div class="card">
       <div class="card-title">旅 行 名 称</div>
       <div class="field">
@@ -87,9 +92,6 @@ function handleStart() {
     </div>
 
     <button class="btn vermilion block" @click="handleStart">开 始 旅 行</button>
-
-    <button class="btn ghost block" style="margin-top:12px;color:var(--ink-soft);" @click="showJoin = true">加 入 旅 行</button>
-    <p class="join-hint">已有同伴开启了同步？输入同步码加入</p>
 
     <div class="foot-note">
       <strong>说明</strong><br>
@@ -187,6 +189,13 @@ function handleStart() {
 .foot-note { margin-top: 24px; padding: 14px; border-top: 1px dashed var(--rule); font-size: 10.5px; color: var(--ink-soft); line-height: 1.7; text-align: center; font-family: var(--font-mono); }
 .foot-note strong { color: var(--ink); font-family: var(--font-title); font-weight: 700; }
 
-.join-hint { text-align: center; font-size: 11px; color: var(--ink-faint); margin-top: 8px; font-family: var(--font-mono); }
+.join-entry {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  width: 100%; margin-top: 14px; padding: 13px 16px;
+  border: 1.5px dashed var(--indigo); border-radius: 10px;
+  background: rgba(43,58,103,.05); cursor: pointer;
+}
+.join-title { font-family: var(--font-title); font-weight: 700; font-size: 15px; letter-spacing: 2px; color: var(--indigo); }
+.join-sub { font-size: 11px; color: var(--ink-soft); font-family: var(--font-mono); }
 
 </style>
