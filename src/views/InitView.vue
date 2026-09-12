@@ -192,10 +192,11 @@ function handleStart() {
 .join-entry {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   width: 100%; margin-top: 14px; padding: 13px 16px;
-  border: 1.5px dashed var(--indigo); border-radius: 10px;
-  background: rgba(43,58,103,.05); cursor: pointer;
+  border: 1.5px solid var(--indigo); border-radius: 10px;
+  background: var(--indigo); cursor: pointer;
+  box-shadow: var(--shadow);
 }
-.join-title { font-family: var(--font-title); font-weight: 700; font-size: 15px; letter-spacing: 2px; color: var(--indigo); }
-.join-sub { font-size: 11px; color: var(--ink-soft); font-family: var(--font-mono); }
+.join-title { font-family: var(--font-title); font-weight: 700; font-size: 15px; letter-spacing: 2px; color: #fbf6e8; }
+.join-sub { font-size: 11px; color: rgba(251,246,232,.75); font-family: var(--font-mono); }
 
 </style>
