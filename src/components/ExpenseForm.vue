@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import MemberSelector from './MemberSelector.vue'
+import { useTripStore } from '../stores/trip'
+import { findDuplicateRecords } from '../utils/sync'
 
 const PURPOSE_OPTIONS = ['正餐', '甜点', '纪念品', '酒店', '机票', '火车', '租车', '交通', '其他']
 
@@ -14,6 +16,10 @@ const beneficiaryIds = ref([])
 const createdAt = ref('')
 const note = ref('')
 const error = ref('')
+const dupConfirm = ref(false)
+let pendingSave = null
+
+const { trip } = useTripStore()
 
 watch(() => props.editing, (val) => {
   purpose.value = val?.purpose || ''
@@ -40,15 +46,30 @@ function handleSubmit() {
   if (!payerId.value) { error.value = '请选择支付人'; return }
   if (beneficiaryIds.value.length === 0) { error.value = '请选择至少一个受益人'; return }
 
-  emit('save', {
+  const record = {
     purpose: purpose.value,
     amount: amountCents,
     payerId: payerId.value,
-    beneficiaryIds: beneficiaryIds.value,
+    beneficiaryIds: [...beneficiaryIds.value]
+  }
+  const dups = findDuplicateRecords(record, trip.value?.expenses || [], props.editing?.id || null)
+  if (dups.length > 0) {
+    pendingSave = { record }
+    dupConfirm.value = true
+    return
+  }
+  doSave(record)
+}
+
+function doSave(record) {
+  emit('save', {
+    purpose: record.purpose,
+    amount: record.amount,
+    payerId: record.payerId,
+    beneficiaryIds: record.beneficiaryIds,
     note: note.value.trim(),
     createdAt: new Date(createdAt.value).toISOString()
   })
-
   if (!isEditing.value) {
     purpose.value = ''
     amount.value = ''
@@ -57,6 +78,12 @@ function handleSubmit() {
     note.value = ''
     createdAt.value = toDatetimeLocal(new Date())
   }
+}
+
+function confirmDupSave() {
+  dupConfirm.value = false
+  if (pendingSave) doSave(pendingSave.record)
+  pendingSave = null
 }
 
 function handleCancel() {
@@ -111,6 +138,17 @@ function handleCancel() {
       <button v-if="isEditing" type="button" class="btn sm ghost" @click="handleCancel">取 消 编 辑</button>
       <button type="button" :class="['btn primary block', { sm: isEditing }]" @click="handleSubmit">{{ isEditing ? '保 存 修 改' : '添 加' }}</button>
     </div>
+
+    <div v-if="dupConfirm" class="overlay" @click.self="dupConfirm = false">
+      <div class="dup-dialog">
+        <h3>疑 似 重 复</h3>
+        <p>已存在支付人、受益人、金额、项目完全相同的记录。仍要保存吗？</p>
+        <div class="dup-actions">
+          <button class="btn sm ghost" @click="dupConfirm = false; pendingSave = null">放 弃</button>
+          <button class="btn sm primary" @click="confirmDupSave">保 存</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -150,4 +188,9 @@ function handleCancel() {
 .btn.block { width: 100%; }
 .form-actions { display: flex; gap: 10px; margin-top: 12px; }
 .error { color: var(--vermilion); font-size: 14px; margin-top: 8px; }
+.overlay { position: fixed; inset: 0; background: rgba(28,25,23,.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+.dup-dialog { background: #fbf6e8; border: 1px solid var(--rule); border-radius: 10px; padding: 22px 20px; width: 300px; max-width: 100%; box-shadow: 0 20px 50px -10px rgba(0,0,0,.4); }
+.dup-dialog h3 { font-family: var(--font-title); font-weight: 700; font-size: 17px; margin-bottom: 10px; letter-spacing: 1px; }
+.dup-dialog p { color: var(--ink-soft); font-size: 13px; line-height: 1.6; margin-bottom: 14px; }
+.dup-actions { display: flex; gap: 10px; justify-content: flex-end; }
 </style>

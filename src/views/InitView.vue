@@ -2,12 +2,19 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTripStore } from '../stores/trip'
+import SyncDialog from '../components/SyncDialog.vue'
 
 const router = useRouter()
 const { trip, initTrip } = useTripStore()
 const memberCount = ref(5)
 const memberNames = ref(['成员1', '成员2', '成员3', '成员4', '成员5'])
 const tripName = ref('我的旅行')
+const showJoin = ref(false)
+
+function onJoined() {
+  showJoin.value = false
+  router.replace('/expense')
+}
 
 const CHINESE_NUMS = ['壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖', '拾',
   '拾壹', '拾贰', '拾叁', '拾肆', '拾伍', '拾陆', '拾柒', '拾捌', '拾玖', '贰拾']
@@ -52,6 +59,11 @@ function handleStart() {
       </div>
     </div>
 
+    <button class="join-entry" @click="showJoin = true">
+      <span class="join-title">加 入 旅 行</span>
+      <span class="join-sub">已有同伴的同步码？输入即可加入</span>
+    </button>
+
     <div class="card">
       <div class="card-title">旅 行 名 称</div>
       <div class="field">
@@ -86,6 +98,8 @@ function handleStart() {
       设定旅行名与成员后进入记账页 · 数据仅存本地浏览器
     </div>
   </div>
+
+  <SyncDialog :show="showJoin" join-only @joined="onJoined" @close="showJoin = false" />
 </template>
 
 <style scoped>
@@ -174,4 +188,15 @@ function handleStart() {
 /* foot note */
 .foot-note { margin-top: 24px; padding: 14px; border-top: 1px dashed var(--rule); font-size: 10.5px; color: var(--ink-soft); line-height: 1.7; text-align: center; font-family: var(--font-mono); }
 .foot-note strong { color: var(--ink); font-family: var(--font-title); font-weight: 700; }
+
+.join-entry {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  width: 100%; margin-top: 14px; padding: 13px 16px;
+  border: 1.5px solid var(--indigo); border-radius: 10px;
+  background: var(--indigo); cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.join-title { font-family: var(--font-title); font-weight: 700; font-size: 15px; letter-spacing: 2px; color: #fbf6e8; }
+.join-sub { font-size: 11px; color: rgba(251,246,232,.75); font-family: var(--font-mono); }
+
 </style>

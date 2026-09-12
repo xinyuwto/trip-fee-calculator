@@ -1,0 +1,7 @@
+{
+  "name": "trip-sync",
+  "version": "1.0.0",
+  "dependencies": {
+    "@cloudbase/node-sdk": "^3.0.0"
+  }
+}

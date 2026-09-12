@@ -3,6 +3,18 @@ export function sortBeneficiaryIds(beneficiaryIds, members) {
   const indexMap = Object.fromEntries(members.map((m, i) => [m.id, i]))
   return [...beneficiaryIds].sort((a, b) => (indexMap[a] ?? Infinity) - (indexMap[b] ?? Infinity))
 }
+
+// 时间倒序（最新支付在前）；同分钟并列时后录入的在前
+export function sortExpensesDesc(expenses) {
+  return expenses
+    .map((e, index) => ({ e, index }))
+    .sort((a, b) => {
+      const diff = new Date(b.e.createdAt) - new Date(a.e.createdAt)
+      if (diff !== 0) return diff
+      return b.index - a.index
+    })
+    .map(({ e }) => e)
+}
 </script>
 
 <script setup>
@@ -24,9 +36,7 @@ function fmtTime(iso) {
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-const sorted = computed(() =>
-  [...props.expenses].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-)
+const sorted = computed(() => sortExpensesDesc(props.expenses))
 
 function beneficiaryNames(expense) {
   return sortBeneficiaryIds(expense.beneficiaryIds, props.members).map(memberName).join('、')

@@ -1,34 +1,37 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTripStore } from '../stores/trip'
 import ExpenseForm from '../components/ExpenseForm.vue'
 import ExpenseList from '../components/ExpenseList.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import SyncDialog from '../components/SyncDialog.vue'
+import SyncStatus from '../components/SyncStatus.vue'
+import { useSyncEngine } from '../composables/useSyncEngine'
 
 const router = useRouter()
-const { trip, toast, addExpense, updateExpense, removeExpense, resetTrip, exportData, importData } = useTripStore()
+const { trip, addExpense, updateExpense, removeExpense, resetTrip, exportData, importData } = useTripStore()
+const engine = useSyncEngine()
 
 if (!trip.value) {
   router.replace('/')
 }
+
+onMounted(() => { engine.triggerSync() })
 
 const editing = ref(null)
 const deleteTarget = ref(null)
 const showReset = ref(false)
 const showReset2 = ref(false)
 const showImport = ref(false)
+const showSync = ref(false)
 const importText = ref('')
 const importError = ref('')
 const importMsg = ref('')
-const localToast = ref({ message: '', id: 0 })
 
-watch(() => toast.value.id, (id) => {
-  if (id > 0) {
-    localToast.value = { ...toast.value }
-    setTimeout(() => { localToast.value = { message: '', id: 0 } }, 2000)
-  }
-})
+watch(() => engine.pendingDuplicates.value.length, (n) => {
+  if (n > 0) showSync.value = true
+}, { immediate: true })
 
 function handleSave(expense) {
   if (expense === null) {
@@ -41,6 +44,7 @@ function handleSave(expense) {
   } else {
     addExpense(expense)
   }
+  engine.triggerSync()
 }
 
 function handleEdit(expense) {
@@ -52,6 +56,7 @@ function handleDelete() {
   if (deleteTarget.value) {
     removeExpense(deleteTarget.value.id)
     deleteTarget.value = null
+    engine.triggerSync()
   }
 }
 
@@ -86,10 +91,6 @@ function handleImport() {
 
 <template>
   <div class="stage" v-if="trip">
-    <Transition name="toast">
-      <div v-if="localToast.id > 0" class="toast">{{ localToast.message }}</div>
-    </Transition>
-
     <!-- 票据头 -->
     <div class="receipt-head">
       <div class="rh-top">
@@ -97,11 +98,21 @@ function handleImport() {
           <div class="rh-title">{{ trip.name }}</div>
           <div class="rh-sub">EXPENSE · 记账流水</div>
         </div>
-        <div class="rh-stamp indigo">记账中</div>
+        <span class="rh-top-right">
+          <span class="rh-stamp indigo">记账中</span>
+          <SyncStatus
+            :status="engine.status.value"
+            :error="engine.errorMessage.value"
+            :pending-count="engine.pendingDuplicates.value.length"
+            @retry="engine.triggerSync()"
+            @open="showSync = true"
+          />
+        </span>
       </div>
       <div class="rh-meta">
         <span>step 2 / 4</span>
         <div class="rh-actions">
+          <button class="rh-btn" @click="showSync = true">同 步</button>
           <button class="rh-btn" @click="showImport = true">导 入</button>
           <button class="rh-btn" @click="handleExport">导 出</button>
           <button class="rh-btn primary" @click="router.push('/settlement')">结 算</button>
@@ -158,6 +169,8 @@ function handleImport() {
         </div>
       </div>
     </div>
+
+    <SyncDialog :show="showSync" @close="showSync = false" />
   </div>
 </template>
 
@@ -187,6 +200,7 @@ function handleImport() {
   letter-spacing: 1px; opacity: .85; white-space: nowrap; flex-shrink: 0;
 }
 .rh-stamp.indigo { border-color: var(--indigo); color: var(--indigo); }
+.rh-top-right { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
 .rh-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .rh-btn {
   font-family: var(--font-body); font-size: 12px; font-weight: 500;
@@ -225,17 +239,4 @@ function handleImport() {
 .dialog-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
 .error { color: var(--vermilion); font-size: 13px; margin-top: 6px; }
 .success { color: var(--moss); font-size: 13px; margin-top: 6px; }
-
-/* toast */
-.toast {
-  position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-  background: var(--ink); color: #fbf6e8; padding: 12px 24px;
-  border-radius: 8px; font-size: 15px; font-family: var(--font-title);
-  z-index: 2000; box-shadow: 0 4px 16px rgba(28,25,23,0.3);
-  pointer-events: none;
-}
-.toast-enter-active { transition: all 0.3s ease; }
-.toast-leave-active { transition: all 0.3s ease; }
-.toast-enter-from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
-.toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(-10px); }
 </style>
