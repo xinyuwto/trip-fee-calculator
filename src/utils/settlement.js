@@ -16,12 +16,15 @@ export function shareOf(expense, memberId) {
 
 /**
  * 计算谁欠谁多少钱。
+ * proxies：{ [被代付人id]: 付款人id } —— 完全承担：被代付人的垫付与应承担均归付款人，
+ * 被代付人退出转账方案；明细（paid/owed/balance）保持原样分开记账。
  *
  * @param {Array<{id: string, name: string}>} members
  * @param {Array<{amount: number, payerId: string, beneficiaryIds: string[]}>} expenses
+ * @param {Object} [proxies]
  * @returns {{ memberBalances: Array, transactions: Array }}
  */
-export function calculateSettlement(members, expenses) {
+export function calculateSettlement(members, expenses, proxies = {}) {
   // paid[m.id] = 该成员总共支付的金额
   const paid = new Map(members.map(m => [m.id, 0]))
   // owed[m.id] = 该成员总共应承担的金额
@@ -52,22 +55,44 @@ export function calculateSettlement(members, expenses) {
     }
   })
 
-  // 贪心算法计算最少交易笔数
+  // 代付：付款人吸收被代付人的原净额，被代付人调整净额归零
+  const balanceById = new Map(memberBalances.map(b => [b.memberId, b.balance]))
+  const nameById = new Map(members.map(m => [m.id, m.name]))
+  const absorbedBy = new Map() // payerId -> [{ id, name, rawBalance }]
+  for (const b of memberBalances) {
+    b.adjustedBalance = b.balance
+    b.absorbed = []
+    if (proxies[b.memberId]) b.proxyPayerId = proxies[b.memberId]
+  }
+  for (const b of memberBalances) {
+    const payerId = proxies[b.memberId]
+    if (!payerId || !balanceById.has(payerId)) continue
+    const payer = memberBalances.find(x => x.memberId === payerId)
+    payer.adjustedBalance += b.balance
+    b.adjustedBalance = 0
+    if (!absorbedBy.has(payerId)) absorbedBy.set(payerId, [])
+    absorbedBy.get(payerId).push({ id: b.memberId, name: b.memberName, rawBalance: b.balance })
+  }
+  for (const b of memberBalances) {
+    if (absorbedBy.has(b.memberId)) b.absorbed = absorbedBy.get(b.memberId)
+  }
+
+  // 贪心算法计算最少交易笔数（基于调整后净额）
   const debtors = memberBalances
-    .filter(b => b.balance < 0)
-    .map(b => ({ ...b, balance: -b.balance }))
-    .sort((a, b) => b.balance - a.balance)
+    .filter(b => b.adjustedBalance < 0)
+    .map(b => ({ ...b, adjustedBalance: -b.adjustedBalance }))
+    .sort((a, b) => b.adjustedBalance - a.adjustedBalance)
 
   const creditors = memberBalances
-    .filter(b => b.balance > 0)
+    .filter(b => b.adjustedBalance > 0)
     .map(b => ({ ...b }))
-    .sort((a, b) => b.balance - a.balance)
+    .sort((a, b) => b.adjustedBalance - a.adjustedBalance)
 
   const transactions = []
   let di = 0, ci = 0
 
   while (di < debtors.length && ci < creditors.length) {
-    const amount = Math.min(debtors[di].balance, creditors[ci].balance)
+    const amount = Math.min(debtors[di].adjustedBalance, creditors[ci].adjustedBalance)
     if (amount > 0) {
       transactions.push({
         fromId: debtors[di].memberId,
@@ -77,10 +102,10 @@ export function calculateSettlement(members, expenses) {
         amount
       })
     }
-    debtors[di].balance -= amount
-    creditors[ci].balance -= amount
-    if (debtors[di].balance === 0) di++
-    if (creditors[ci].balance === 0) ci++
+    debtors[di].adjustedBalance -= amount
+    creditors[ci].adjustedBalance -= amount
+    if (debtors[di].adjustedBalance === 0) di++
+    if (creditors[ci].adjustedBalance === 0) ci++
   }
 
   return { memberBalances, transactions: transactions.sort((a, b) => a.fromName.localeCompare(b.fromName, 'zh-CN')) }
@@ -110,8 +135,8 @@ function fmtTime(iso) {
  *   }>
  * }}
  */
-export function analyzeSettlement(members, expenses) {
-  const settlement = calculateSettlement(members, expenses)
+export function analyzeSettlement(members, expenses, proxies = {}) {
+  const settlement = calculateSettlement(members, expenses, proxies)
 
   const membersData = members.map(me => {
     let paid = 0
@@ -199,7 +224,8 @@ export function analyzeSettlement(members, expenses) {
       isPositive: balance >= 0,
       paid: Math.round(paid),
       owed: Math.round(owed),
-      balance: Math.round(balance)
+      balance: Math.round(balance),
+      adjustedBalance: settlement.memberBalances.find(b => b.memberId === me.id)?.adjustedBalance ?? Math.round(balance)
     }
 
     const why = {
@@ -217,9 +243,27 @@ export function analyzeSettlement(members, expenses) {
         .sort((a, b) => a.balance - b.balance)
         [0]?.memberName || ''
     }
-    why.narrativeHint = why.isNetCreditor
-      ? why.totalPaidForOthers > why.totalOthersPaidForMe * 2 ? 'major_creditor' : 'creditor'
-      : why.isNetDebtor ? 'debtor' : 'even'
+
+    // 代付：被代付人 narrativeHint 覆写为 proxied 并附付款人原明细；付款人附 absorbed 清单
+    const myPayerId = proxies[me.id]
+    if (myPayerId && members.some(m => m.id === myPayerId)) {
+      why.narrativeHint = 'proxied'
+      why.payerName = members.find(m => m.id === myPayerId)?.name || ''
+      why.rawPaid = netCard.paid
+      why.rawOwed = netCard.owed
+    } else {
+      const absorbedBalances = settlement.memberBalances.find(b => b.memberId === me.id)?.absorbed || []
+      if (absorbedBalances.length > 0) {
+        why.absorbed = absorbedBalances.map(a => ({
+          name: a.name,
+          paid: settlement.memberBalances.find(b => b.memberId === a.id)?.paid || 0,
+          owed: settlement.memberBalances.find(b => b.memberId === a.id)?.owed || 0
+        }))
+      }
+      why.narrativeHint = why.isNetCreditor
+        ? why.totalPaidForOthers > why.totalOthersPaidForMe * 2 ? 'major_creditor' : 'creditor'
+        : why.isNetDebtor ? 'debtor' : 'even'
+    }
 
     return {
       memberId: me.id,

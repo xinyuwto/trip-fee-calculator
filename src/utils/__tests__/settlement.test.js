@@ -412,3 +412,136 @@ describe('analyzeSettlement', () => {
     expect(bob.tasks).toEqual([])
   })
 })
+
+describe('calculateSettlement — 代付（proxies）', () => {
+  // 确认场景：4 人，B 垫付 ¥200（全员受益各欠 50）+ C 垫付 ¥100（全员受益各欠 25）
+  const members = [
+    { id: 'A', name: 'A' },
+    { id: 'B', name: 'B' },
+    { id: 'C', name: 'C' },
+    { id: 'D', name: 'D' }
+  ]
+  const expenses = [
+    { amount: 20000, payerId: 'B', beneficiaryIds: ['A', 'B', 'C', 'D'] },
+    { amount: 10000, payerId: 'C', beneficiaryIds: ['A', 'B', 'C', 'D'] }
+  ]
+  // 无代付基线：A −7500, B +12500, C +2500, D −7500
+  // 贪心：A→B 7500, D→B 5000, D→C 2500
+
+  it('无 proxies 时 adjustedBalance 等于 balance，absorbed 为空（回归保证）', () => {
+    const result = calculateSettlement(members, expenses)
+    result.memberBalances.forEach(b => {
+      expect(b.adjustedBalance).toBe(b.balance)
+      expect(b.absorbed).toEqual([])
+      expect(b.proxyPayerId).toBeUndefined()
+    })
+    const names = result.transactions.map(t => `${t.fromId}->${t.toId}:${t.amount}`)
+    expect(names).toEqual(['A->B:7500', 'D->B:5000', 'D->C:2500'])
+  })
+
+  it('A 帮 B 代付（完全承担）：B 退出转账方案，A 净额合并 B 的原净额', () => {
+    const proxies = { B: 'A' }
+    const result = calculateSettlement(members, expenses, proxies)
+
+    const a = result.memberBalances.find(b => b.memberId === 'A')
+    const b = result.memberBalances.find(b => b.memberId === 'B')
+    const c = result.memberBalances.find(b => b.memberId === 'C')
+
+    expect(b.adjustedBalance).toBe(0)
+    expect(b.proxyPayerId).toBe('A')
+    expect(b.balance).toBe(12500) // raw 明细保持分开
+    expect(a.adjustedBalance).toBe(-7500 + 12500) // 5000
+    expect(a.balance).toBe(-7500) // raw 不变
+    expect(a.absorbed).toEqual([{ id: 'B', name: 'B', rawBalance: 12500 }])
+    expect(c.adjustedBalance).toBe(2500) // 未涉及者不受影响
+
+    // 转账方案：B 不出现；D 付 A 与 C
+    expect(result.transactions.some(t => t.fromId === 'B' || t.toId === 'B')).toBe(false)
+    const names = result.transactions.map(t => `${t.fromId}->${t.toId}:${t.amount}`)
+    expect(names).toEqual(['D->A:5000', 'D->C:2500'])
+  })
+
+  it('被代付人是净债务人时：付款人 adjustedBalance 减少（方向双验证）', () => {
+    // A 垫付 ¥200 全员受益：A +15000, B/C/D 各 −5000
+    const exp2 = [{ amount: 20000, payerId: 'A', beneficiaryIds: ['A', 'B', 'C', 'D'] }]
+    const proxies = { B: 'A' }
+    const result = calculateSettlement(members, exp2, proxies)
+    const a = result.memberBalances.find(b => b.memberId === 'A')
+    const b = result.memberBalances.find(b => b.memberId === 'B')
+    expect(b.balance).toBe(-5000)
+    expect(a.balance).toBe(15000)
+    expect(a.adjustedBalance).toBe(10000) // 15000 + (−5000)
+    // B 退出，C、D 付 A
+    expect(result.transactions.some(t => t.fromId === 'B')).toBe(false)
+    const names = result.transactions.map(t => `${t.fromId}->${t.toId}:${t.amount}`)
+    expect(names).toEqual(['C->A:5000', 'D->A:5000'])
+  })
+
+  it('家庭多人代付（B、C → A）：两人都退出，A absorbed 两项', () => {
+    const proxies = { B: 'A', C: 'A' }
+    const result = calculateSettlement(members, expenses, proxies)
+    const a = result.memberBalances.find(b => b.memberId === 'A')
+    expect(a.adjustedBalance).toBe(-7500 + 12500 + 2500) // 7500
+    expect(a.absorbed).toEqual([
+      { id: 'B', name: 'B', rawBalance: 12500 },
+      { id: 'C', name: 'C', rawBalance: 2500 }
+    ])
+    expect(result.transactions.some(t => t.fromId === 'B' || t.fromId === 'C')).toBe(false)
+    const names = result.transactions.map(t => `${t.fromId}->${t.toId}:${t.amount}`)
+    expect(names).toEqual(['D->A:7500'])
+  })
+
+  it('全员平账时代付无实质影响', () => {
+    const even = [
+      { amount: 30000, payerId: 'A', beneficiaryIds: ['A', 'B', 'C', 'D'] },
+      { amount: 30000, payerId: 'B', beneficiaryIds: ['A', 'B', 'C', 'D'] },
+      { amount: 30000, payerId: 'C', beneficiaryIds: ['A', 'B', 'C', 'D'] },
+      { amount: 30000, payerId: 'D', beneficiaryIds: ['A', 'B', 'C', 'D'] }
+    ]
+    const result = calculateSettlement(members, even, { B: 'A' })
+    result.memberBalances.forEach(b => expect(b.adjustedBalance).toBe(0))
+    expect(result.transactions).toHaveLength(0)
+  })
+})
+
+describe('analyzeSettlement — 代付', () => {
+  const members = [
+    { id: 'A', name: 'A' },
+    { id: 'B', name: 'B' },
+    { id: 'C', name: 'C' },
+    { id: 'D', name: 'D' }
+  ]
+  const expenses = [
+    { id: 'e1', purpose: '午餐', amount: 20000, payerId: 'B', beneficiaryIds: ['A', 'B', 'C', 'D'], createdAt: '2026-09-29T12:00:00Z' },
+    { id: 'e2', purpose: '咖啡', amount: 10000, payerId: 'C', beneficiaryIds: ['A', 'B', 'C', 'D'], createdAt: '2026-09-29T15:00:00Z' }
+  ]
+  const proxies = { B: 'A' }
+
+  it('被代付人：narrativeHint 为 proxied，tasks 为空，why 含付款人与原明细', () => {
+    const result = analyzeSettlement(members, expenses, proxies)
+    const b = result.members.find(m => m.memberId === 'B')
+    expect(b.why.narrativeHint).toBe('proxied')
+    expect(b.why.payerName).toBe('A')
+    expect(b.why.rawPaid).toBe(20000)
+    expect(b.why.rawOwed).toBe(7500)
+    expect(b.tasks).toEqual([])
+    expect(b.netCard.adjustedBalance).toBe(0)
+    expect(b.netCard.balance).toBe(12500) // raw 保留
+  })
+
+  it('付款人：why.absorbed 列出代付成员的原明细', () => {
+    const result = analyzeSettlement(members, expenses, proxies)
+    const a = result.members.find(m => m.memberId === 'A')
+    expect(a.why.absorbed).toEqual([{ name: 'B', paid: 20000, owed: 7500 }])
+    expect(a.netCard.adjustedBalance).toBe(5000)
+    expect(a.tasks.length).toBeGreaterThan(0) // D→A 属于 A 的任务
+  })
+
+  it('与他人往来明细保持分开记账（不受代付影响）', () => {
+    const result = analyzeSettlement(members, expenses, proxies)
+    const b = result.members.find(m => m.memberId === 'B')
+    const relWithA = b.relations.find(r => r.peerId === 'A')
+    expect(relWithA.iGave).toBe(5000) // B 垫付午餐中 A 的份额
+    expect(relWithA.iPaidForPeer.length).toBe(1)
+  })
+})
