@@ -1,0 +1,2 @@
+cloudfunctions/trip-sync/scf_bootstrap text eol=lf
+*.sh text eol=lf
