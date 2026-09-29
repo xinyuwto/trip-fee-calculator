@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTripStore } from '../stores/trip'
 import { calculateSettlement } from '../utils/settlement'
@@ -10,6 +10,9 @@ const { trip, toast, setProxy } = useTripStore()
 if (!trip.value) {
   router.replace('/')
 }
+
+const proxyOpen = ref(false)
+const proxyCount = computed(() => Object.keys(trip.value?.proxies || {}).length)
 
 const result = computed(() => {
   if (!trip.value || trip.value.expenses.length === 0) return null
@@ -83,21 +86,29 @@ function avatarColor(name) {
       </div>
     </div>
 
-    <!-- 代付设置 -->
+    <!-- 代付设置（默认收起，点击展开） -->
     <div class="card">
-      <div class="card-title">代 付 设 置</div>
-      <p class="proxy-hint">帮同伴代付：明细仍分开记，TA 的支付与欠款由付款人承担，TA 退出转账方案</p>
-      <div v-for="m in trip.members" :key="m.id" class="proxy-row">
-        <div class="bal-avatar" :style="{ background: avatarColor(m.name) }">{{ m.name[0] }}</div>
-        <div class="proxy-name">{{ m.name }}</div>
-        <select
-          class="proxy-select"
-          :value="trip.proxies?.[m.id] || ''"
-          @change="onProxyChange(m.id, $event.target.value)"
-        >
-          <option value="">自己承担</option>
-          <option v-for="o in proxyOptions(m)" :key="o.id" :value="o.id">由 {{ o.name }} 代付</option>
-        </select>
+      <div class="card-title proxy-toggle" @click="proxyOpen = !proxyOpen">
+        代 付 设 置
+        <span v-if="proxyCount" class="badge indigo-badge">已代付 {{ proxyCount }} 人</span>
+        <svg class="proxy-toggle-arrow" :class="{ open: proxyOpen }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 6 15 12 9 18"/>
+        </svg>
+      </div>
+      <div v-show="proxyOpen">
+        <p class="proxy-hint">帮同伴代付：明细仍分开记，TA 的支付与欠款由付款人承担，TA 退出转账方案</p>
+        <div v-for="m in trip.members" :key="m.id" class="proxy-row">
+          <div class="bal-avatar" :style="{ background: avatarColor(m.name) }">{{ m.name[0] }}</div>
+          <div class="proxy-name">{{ m.name }}</div>
+          <select
+            class="proxy-select"
+            :value="trip.proxies?.[m.id] || ''"
+            @change="onProxyChange(m.id, $event.target.value)"
+          >
+            <option value="">自己承担</option>
+            <option v-for="o in proxyOptions(m)" :key="o.id" :value="o.id">由 {{ o.name }} 代付</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -237,6 +248,9 @@ function avatarColor(name) {
 .empty { text-align: center; color: var(--ink-faint); font-size: 14px; padding: 40px 0; font-family: var(--font-title); }
 
 /* proxy settings */
+.proxy-toggle { cursor: pointer; user-select: none; }
+.proxy-toggle-arrow { width: 16px; height: 16px; margin-left: auto; color: var(--ink-faint); transition: transform .25s; }
+.proxy-toggle-arrow.open { transform: rotate(90deg); }
 .proxy-hint { font-size: 11px; color: var(--ink-soft); margin: -6px 0 10px; line-height: 1.6; font-family: var(--font-mono); }
 .proxy-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px dashed var(--rule); }
 .proxy-row:first-of-type { border-top: none; }
