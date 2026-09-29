@@ -58,6 +58,17 @@ describe('proxy state', () => {
     expect(store.trip.value.proxies).toEqual({ [b.id]: a.id }) // 状态未破坏
   })
 
+  it('rejects proxying a member who is already paying for others (no chains)', async () => {
+    const store = await loadStore()
+    store.initTrip('测试', ['甲', '乙', '丙'])
+    const [a, b, c] = store.trip.value.members
+    store.setProxy(b.id, a.id) // B → A
+    // A 正在为 B 代付，A 自身再被 C 代付会形成链 → 拒绝
+    const r = store.setProxy(a.id, c.id)
+    expect(r.success).toBe(false)
+    expect(store.trip.value.proxies).toEqual({ [b.id]: a.id }) // 状态未破坏
+  })
+
   it('setProxy(id, null) clears the proxy', async () => {
     const store = await loadStore()
     store.initTrip('测试', ['甲', '乙'])

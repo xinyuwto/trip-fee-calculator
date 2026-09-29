@@ -182,6 +182,9 @@ export function useTripStore() {
     } else {
       if (payerId === proxiedId) return { success: false, error: '不能代付自己' }
       if (trip.value.proxies[payerId]) return { success: false, error: '该成员已被代付，不能作为付款人' }
+      if (Object.values(trip.value.proxies).includes(proxiedId)) {
+        return { success: false, error: '该成员正在为他人代付，不能被代付（请先解除其代付关系）' }
+      }
       const payer = trip.value.members.find(m => m.id === payerId)
       if (!payer) return { success: false, error: '付款人不存在' }
       trip.value.proxies[proxiedId] = payerId
