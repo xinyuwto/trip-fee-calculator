@@ -110,6 +110,8 @@ async function handleSync() {
     mode.value = 'duplicates'
   } else if (engine.status.value === 'success') {
     showToast('同步成功')
+    // 同步成功后自动关闭弹框（toast 为全局组件，关闭后仍可见）
+    setTimeout(() => emit('close'), 800)
   } else if (engine.status.value === 'error') {
     showToast(engine.errorMessage.value || '同步失败')
   }
@@ -127,7 +129,10 @@ function decideDup(action) {
     dupDecisions.value = []
     mode.value = engine.status.value === 'pending' ? 'duplicates' : 'active'
     dupIndex.value = 0
-    if (engine.status.value === 'success') showToast('去重完成，同步成功')
+    if (engine.status.value === 'success') {
+      showToast('去重完成，同步成功')
+      setTimeout(() => emit('close'), 800)
+    }
   })
 }
 
