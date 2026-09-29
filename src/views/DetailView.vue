@@ -160,10 +160,10 @@ function whyText(m) {
             class="rel-head"
             @click="toggleRel(m.memberId, r.peerId)"
           >
-            <div class="rel-avatar" :style="{ background: avatarColor(r.peerName) }">{{ r.peerName[0] }}</div>
+            <div class="rel-avatar" :style="{ background: avatarColor(m.memberName) }">{{ m.memberName[0] }}</div>
             <div class="rel-mid">
-              <div class="rel-name">与 {{ r.peerName }} 的往来</div>
-              <div class="rel-sub">我垫付 ¥{{ money(r.iGave) }} · Ta 垫付 ¥{{ money(r.theyGave) }}</div>
+              <div class="rel-name">{{ m.memberName }} → {{ r.peerName }}</div>
+              <div class="rel-sub">我（{{ m.memberName }}）垫付 ¥{{ money(r.iGave) }} · Ta 垫付 ¥{{ money(r.theyGave) }}</div>
             </div>
             <div :class="['rel-net', r.net > 0 ? 'pos' : (r.net < 0 ? 'neg' : '')]">
               <span class="lbl">{{ r.net > 0 ? 'Ta 应付我' : (r.net < 0 ? '我 应付 Ta' : '已两清') }}</span>
