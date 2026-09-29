@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTripStore } from '../stores/trip'
 import { analyzeSettlement } from '../utils/settlement'
@@ -11,11 +11,28 @@ if (!trip.value) {
   router.replace('/')
 }
 
-const analysis = analyzeSettlement(trip.value.members, trip.value.expenses)
-const activeMemberId = ref(analysis.members[0]?.memberId || '')
+const analysis = computed(() => {
+  if (!trip.value) return { memberBalances: [], transactions: [], members: [] }
+  return analyzeSettlement(trip.value.members, trip.value.expenses, trip.value.proxies || {})
+})
+const activeMemberId = ref(analysis.value.members[0]?.memberId || '')
 
 function money(cents) {
   return (cents / 100).toFixed(2)
+}
+
+function isProxied(m) {
+  return m.why.narrativeHint === 'proxied'
+}
+
+function absorbedNames(m) {
+  return (m.why.absorbed || []).map(a => a.name).join('、')
+}
+
+function absorbedDetail(m) {
+  return (m.why.absorbed || [])
+    .map(a => `${a.name} 垫付 ¥${money(a.paid)} · 承担 ¥${money(a.owed)}`)
+    .join('；')
 }
 
 function selectMember(id) {
@@ -51,12 +68,20 @@ function whyTitle(m) {
 
 function whyText(m) {
   const w = m.why
-  const balance = Math.abs(m.netCard.balance)
+  const balance = Math.abs(m.netCard.adjustedBalance)
   if (w.isNetCreditor) {
-    return `我替他人垫付 <span class="pos">¥${money(w.totalPaidForOthers)}</span>，他人仅替我垫付 ¥${money(w.totalOthersPaidForMe)}。净应收 <span class="pos">+¥${money(balance)}</span>，所有债务人都直接对我结算。`
+    let text = `我替他人垫付 <span class="pos">¥${money(w.totalPaidForOthers)}</span>，他人仅替我垫付 ¥${money(w.totalOthersPaidForMe)}。净应收 <span class="pos">+¥${money(balance)}</span>，所有债务人都直接对我结算。`
+    if (w.absorbed && w.absorbed.length) {
+      text += `<br>其中含为 ${absorbedNames(m)} 代付的账单（${absorbedDetail(m)}）。`
+    }
+    return text
   }
   const creditors = m.tasks.map(t => `付给 ${t.toName} ¥${money(t.amount)}`).join('　')
-  return `我共消费 <strong>¥${money(m.netCard.owed)}</strong>，支付 ¥${money(m.netCard.paid)}，净应付 <strong>−¥${money(balance)}</strong>。系统做<strong>净额抵消</strong>后，我直接付给最终债权人。`
+  let text = `我共消费 <strong>¥${money(m.netCard.owed)}</strong>，支付 ¥${money(m.netCard.paid)}，净应付 <strong>−¥${money(balance)}</strong>。系统做<strong>净额抵消</strong>后，我直接付给最终债权人。`
+  if (w.absorbed && w.absorbed.length) {
+    text += `<br>另含为 ${absorbedNames(m)} 代付的账单（${absorbedDetail(m)}），实际净额见上方。`
+  }
+  return text
 }
 </script>
 
@@ -102,8 +127,8 @@ function whyText(m) {
         @click="selectMember(m.memberId)"
       >
         <div class="tab-name">{{ m.memberName }}</div>
-        <div class="tab-tag" :class="m.netCard.isPositive ? 'pos' : (m.netCard.balance < 0 ? 'neg' : '')">
-          {{ m.netCard.isPositive ? '应收 ¥' + money(m.netCard.balance) : (m.netCard.balance < 0 ? '应付 ¥' + money(-m.netCard.balance) : '已平账') }}
+        <div class="tab-tag" :class="m.netCard.adjustedBalance > 0 ? 'pos' : (m.netCard.adjustedBalance < 0 ? 'neg' : '')">
+          {{ m.netCard.adjustedBalance > 0 ? '应收 ¥' + money(m.netCard.adjustedBalance) : (m.netCard.adjustedBalance < 0 ? '应付 ¥' + money(-m.netCard.adjustedBalance) : (isProxied(m) ? '由 ' + m.why.payerName + ' 代付' : '已平账')) }}
         </div>
       </button>
     </div>
@@ -112,20 +137,33 @@ function whyText(m) {
       <div v-for="m in analysis.members" :key="m.memberId" :class="['panel', { active: isOpen(m.memberId) }]">
         <div class="net-card">
           <div class="net-label">成员 · 净额</div>
-          <div class="net-name">{{ m.memberName }}</div>
-          <div :class="['net-amount', m.netCard.isPositive ? 'pos' : 'neg']">
-            {{ m.netCard.isPositive ? '+' : '−' }}¥{{ money(Math.abs(m.netCard.balance)) }}<span class="unit">元</span>
+          <div class="net-name">
+            {{ m.memberName }}
+            <span v-if="isProxied(m)" class="net-proxy-stamp">由 {{ m.why.payerName }} 代付</span>
+          </div>
+          <div v-if="isProxied(m)" class="net-amount">¥0.00<span class="unit">元</span></div>
+          <div v-else :class="['net-amount', m.netCard.adjustedBalance >= 0 ? 'pos' : 'neg']">
+            {{ m.netCard.adjustedBalance >= 0 ? '+' : '−' }}¥{{ money(Math.abs(m.netCard.adjustedBalance)) }}<span class="unit">元</span>
           </div>
           <div class="net-foot">
-            <span>已支付 ¥{{ money(m.netCard.paid) }}</span>
-            <span>应承担 ¥{{ money(m.netCard.owed) }}</span>
+            <template v-if="isProxied(m)">
+              <span>原支付 ¥{{ money(m.netCard.paid) }}（{{ m.why.payerName }} 承担）</span>
+              <span>原应承担 ¥{{ money(m.netCard.owed) }}（{{ m.why.payerName }} 承担）</span>
+            </template>
+            <template v-else>
+              <span>已支付 ¥{{ money(m.netCard.paid) }}</span>
+              <span>应承担 ¥{{ money(m.netCard.owed) }}</span>
+            </template>
+          </div>
+          <div v-if="!isProxied(m) && m.why.absorbed && m.why.absorbed.length" class="net-absorb">
+            含为 {{ absorbedNames(m) }} 代付（{{ absorbedDetail(m) }}）
           </div>
         </div>
 
         <div v-if="m.tasks.length === 0" class="task-bar">
           <div>
             <div class="task-label">转账任务</div>
-            <div class="task-item" style="color:var(--ink-soft)">已平账，无需转账</div>
+            <div class="task-item" style="color:var(--ink-soft)">{{ isProxied(m) ? '由 ' + m.why.payerName + ' 代付，无需转账' : '已平账，无需转账' }}</div>
           </div>
         </div>
         <div v-else :class="['task-bar', m.netCard.isPositive ? 'recv' : 'pay']">
@@ -214,7 +252,16 @@ function whyText(m) {
           </div>
         </div>
 
-        <div v-if="m.why.narrativeHint !== 'even'" class="why-card">
+        <div v-if="isProxied(m)" class="why-card proxy-card">
+          <div class="why-title">{{ m.why.payerName }} 已为 {{ m.memberName }} 代付</div>
+          <div class="why-text">
+            {{ m.memberName }} 垫付的 <strong>¥{{ money(m.why.rawPaid) }}</strong> 已计入 {{ m.why.payerName }}，
+            应承担的 <strong>¥{{ money(m.why.rawOwed) }}</strong> 由 {{ m.why.payerName }} 支付。
+            明细仍按 {{ m.memberName }} 单独记录。
+          </div>
+        </div>
+
+        <div v-else-if="m.why.narrativeHint !== 'even'" class="why-card">
           <div class="why-title">{{ whyTitle(m) }}</div>
           <div class="why-text" v-html="whyText(m)"></div>
         </div>
@@ -383,6 +430,10 @@ function whyText(m) {
   background: linear-gradient(180deg, #fbf6e8, var(--paper));
   padding: 16px; box-shadow: var(--shadow); position: relative;
 }
+.why-card.proxy-card { border-color: rgba(43,58,103,.4); }
+.why-card.proxy-card::before {
+  content: "代"; background: var(--indigo);
+}
 .why-card::before {
   content: "注"; position: absolute; top: -9px; left: 14px;
   background: var(--ink); color: #fbf6e8; font-family: var(--font-title);
@@ -392,6 +443,18 @@ function whyText(m) {
 .why-text { font-size: 12.5px; line-height: 1.7; color: var(--ink); }
 .why-text strong { font-family: var(--font-mono); color: var(--vermilion); }
 .why-text .pos { font-family: var(--font-mono); color: var(--moss); font-weight: 600; }
+
+/* proxy extras */
+.net-proxy-stamp {
+  display: inline-block; margin-left: 8px; vertical-align: middle;
+  border: 1.5px solid var(--moss); color: var(--moss);
+  font-family: var(--font-title); font-weight: 700; font-size: 10px;
+  padding: 2px 6px; border-radius: 3px; transform: rotate(-3deg); letter-spacing: 1px;
+}
+.net-absorb {
+  margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--rule);
+  font-size: 11px; color: var(--indigo); line-height: 1.6; font-family: var(--font-mono);
+}
 
 /* algo foot */
 .algo-foot {

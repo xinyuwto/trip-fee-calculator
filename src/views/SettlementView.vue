@@ -5,7 +5,7 @@ import { useTripStore } from '../stores/trip'
 import { calculateSettlement } from '../utils/settlement'
 
 const router = useRouter()
-const { trip } = useTripStore()
+const { trip, toast, setProxy } = useTripStore()
 
 if (!trip.value) {
   router.replace('/')
@@ -13,8 +13,29 @@ if (!trip.value) {
 
 const result = computed(() => {
   if (!trip.value || trip.value.expenses.length === 0) return null
-  return calculateSettlement(trip.value.members, trip.value.expenses)
+  return calculateSettlement(trip.value.members, trip.value.expenses, trip.value.proxies || {})
 })
+
+function onProxyChange(memberId, payerId) {
+  const r = setProxy(memberId, payerId === '' ? null : payerId)
+  if (!r.success) {
+    toast.value = { message: r.error, id: Date.now() }
+  }
+}
+
+// 代付下拉候选：未被代付且非本人（一人仅一个付款人，付款人可代多人）
+function proxyOptions(m) {
+  if (!trip.value) return []
+  return trip.value.members.filter(o => o.id !== m.id && !trip.value.proxies[o.id])
+}
+
+function payerName(id) {
+  return trip.value?.members.find(m => m.id === id)?.name || ''
+}
+
+function absorbedNames(b) {
+  return (b.absorbed || []).map(a => a.name).join('、')
+}
 
 function money(cents) {
   return (cents / 100).toFixed(2)
@@ -62,6 +83,24 @@ function avatarColor(name) {
       </div>
     </div>
 
+    <!-- 代付设置 -->
+    <div class="card">
+      <div class="card-title">代 付 设 置</div>
+      <p class="proxy-hint">帮同伴代付：明细仍分开记，TA 的支付与欠款由付款人承担，TA 退出转账方案</p>
+      <div v-for="m in trip.members" :key="m.id" class="proxy-row">
+        <div class="bal-avatar" :style="{ background: avatarColor(m.name) }">{{ m.name[0] }}</div>
+        <div class="proxy-name">{{ m.name }}</div>
+        <select
+          class="proxy-select"
+          :value="trip.proxies?.[m.id] || ''"
+          @change="onProxyChange(m.id, $event.target.value)"
+        >
+          <option value="">自己承担</option>
+          <option v-for="o in proxyOptions(m)" :key="o.id" :value="o.id">由 {{ o.name }} 代付</option>
+        </select>
+      </div>
+    </div>
+
     <div v-if="!result" class="empty">暂无账单，无法结算</div>
 
     <template v-else>
@@ -84,11 +123,15 @@ function avatarColor(name) {
       <div v-for="b in result.memberBalances" :key="b.memberId" class="bal-item">
         <div class="bal-avatar" :style="{ background: avatarColor(b.memberName) }">{{ b.memberName[0] }}</div>
         <div class="bal-mid">
-          <div class="bal-name">{{ b.memberName }}</div>
+          <div class="bal-name">
+            {{ b.memberName }}
+            <span v-if="b.proxyPayerId" class="badge vermilion-badge">由 {{ payerName(b.proxyPayerId) }} 代付</span>
+            <span v-else-if="b.absorbed && b.absorbed.length" class="badge indigo-badge">含 {{ absorbedNames(b) }}</span>
+          </div>
           <div class="bal-detail">付 ¥{{ money(b.paid) }} · 应承担 ¥{{ money(b.owed) }}</div>
         </div>
-        <div :class="['bal-net', b.balance >= 0 ? 'pos' : 'neg']">
-          {{ b.balance >= 0 ? '+' : '−' }}¥{{ money(Math.abs(b.balance)) }}
+        <div :class="['bal-net', b.adjustedBalance >= 0 ? 'pos' : 'neg']">
+          {{ b.adjustedBalance >= 0 ? '+' : '−' }}¥{{ money(Math.abs(b.adjustedBalance)) }}
         </div>
       </div>
     </template>
@@ -192,6 +235,26 @@ function avatarColor(name) {
 /* misc */
 .flat { color: var(--moss); font-size: 15px; padding: 12px; background: #fbf6e8; border-radius: 8px; border: 1px solid var(--rule); font-family: var(--font-title); }
 .empty { text-align: center; color: var(--ink-faint); font-size: 14px; padding: 40px 0; font-family: var(--font-title); }
+
+/* proxy settings */
+.proxy-hint { font-size: 11px; color: var(--ink-soft); margin: -6px 0 10px; line-height: 1.6; font-family: var(--font-mono); }
+.proxy-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px dashed var(--rule); }
+.proxy-row:first-of-type { border-top: none; }
+.proxy-name { font-family: var(--font-title); font-weight: 700; font-size: 14px; width: 56px; flex-shrink: 0; }
+.proxy-select {
+  flex: 1; padding: 8px 10px; font-size: 13px; font-family: var(--font-body);
+  border: 1px solid var(--rule); border-radius: 6px; background: #fffdf3; color: var(--ink); outline: none;
+}
+
+/* badges */
+.badge {
+  display: inline-block; font-size: 10px; font-weight: 500; padding: 2px 6px;
+  border-radius: 8px; margin-left: 6px; letter-spacing: .5px; vertical-align: middle;
+  font-family: var(--font-mono);
+}
+.vermilion-badge { background: rgba(181,75,58,.12); color: var(--vermilion); border: 1px solid rgba(181,75,58,.35); }
+.indigo-badge { background: rgba(43,58,103,.08); color: var(--indigo); border: 1px solid rgba(43,58,103,.3); }
+
 .foot-note { margin-top: 24px; padding: 14px; border-top: 1px dashed var(--rule); font-size: 10.5px; color: var(--ink-soft); line-height: 1.7; text-align: center; font-family: var(--font-mono); }
 .foot-note strong { color: var(--ink); font-family: var(--font-title); font-weight: 700; }
 </style>
