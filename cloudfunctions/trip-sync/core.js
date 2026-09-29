@@ -58,6 +58,25 @@ function sortKeysDeep(value) {
   return value
 }
 
+// 净化代付配置：两遍处理保证确定性——
+// 第一遍丢弃自代与不存在的付款人；第二遍丢弃付款人仍被代付的条目（链式）
+function sanitizeProxies(proxies, members) {
+  const memberIds = new Set(members.map((m) => m.id))
+  if (!proxies || typeof proxies !== 'object') return {}
+  const kept = {}
+  for (const [proxiedId, payerId] of Object.entries(proxies)) {
+    if (payerId === proxiedId) continue
+    if (!memberIds.has(payerId)) continue
+    kept[proxiedId] = payerId
+  }
+  const out = {}
+  for (const [proxiedId, payerId] of Object.entries(kept)) {
+    if (kept[payerId] !== undefined) continue
+    out[proxiedId] = payerId
+  }
+  return out
+}
+
 function migrateTripToV2(trip) {
   const t = { ...trip }
   if (!Array.isArray(t.deletedIds)) t.deletedIds = []
@@ -67,6 +86,7 @@ function migrateTripToV2(trip) {
     ...e,
     updatedAt: typeof e.updatedAt === 'string' ? e.updatedAt : (e.createdAt || '1970-01-01T00:00:00.000Z')
   }))
+  t.proxies = sanitizeProxies(t.proxies, Array.isArray(t.members) ? t.members : [])
   return t
 }
 
@@ -85,6 +105,7 @@ function canonicalTrip(trip) {
     name: t.name,
     members: [...t.members].map((m) => JSON.stringify(sortKeysDeep(m))).sort(),
     metaUpdatedAt: t.metaUpdatedAt,
+    proxies: t.proxies,
     expenses: [...t.expenses].map((e) => JSON.stringify(sortKeysDeep(e))).sort(),
     deletedIds: [...t.deletedIds].map((d) => JSON.stringify(sortKeysDeep(d))).sort()
   })
@@ -192,6 +213,7 @@ function mergeTrips(localTrip, remoteTrip, dedupDecisions = [], nowIso) {
     members: metaSrc.members,
     createdAt: remote.createdAt || local.createdAt,
     metaUpdatedAt: metaSrc.metaUpdatedAt,
+    proxies: sanitizeProxies(metaSrc.proxies, metaSrc.members),
     expenses: mergedExpenses,
     deletedIds: [...tombstones.values()]
   }

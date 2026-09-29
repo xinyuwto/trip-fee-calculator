@@ -249,3 +249,49 @@ describe('mergeTrips — mixed scenario (T-M13) & changed flag', () => {
     expect(merged.deletedIds.map((d) => d.id).sort()).toEqual(['ldel1', 'rdel1'])
   })
 })
+
+describe('proxies（代付）透传', () => {
+  const trip3 = (over = {}) => baseTrip([], [], {
+    members: [{ id: 'm1', name: '甲' }, { id: 'm2', name: '乙' }, { id: 'm3', name: '丙' }],
+    ...over
+  })
+
+  it('migrateTripToV2 backfills proxies and sanitizes dirty chains', () => {
+    const v2 = migrateTripToV2(trip3())
+    expect(v2.proxies).toEqual({})
+    const dirty = migrateTripToV2(trip3({ proxies: { m1: 'm1', m2: 'm1', m3: 'm2' } }))
+    expect(dirty.proxies).toEqual({ m2: 'm1' }) // 自代丢弃；m3→m2 链式丢弃
+  })
+
+  it('meta LWW carries proxies: local newer → merged takes local proxies', () => {
+    const local = trip3({ metaUpdatedAt: t2, proxies: { m2: 'm1' } })
+    const remote = trip3({ name: '远端', metaUpdatedAt: t1 })
+    const { merged, changed } = mergeTrips(local, remote, [], NOW)
+    expect(merged.proxies).toEqual({ m2: 'm1' })
+    expect(merged.name).toBe('测试旅行')
+    expect(changed).toBe(true)
+  })
+
+  it('meta LWW carries proxies: remote newer → merged takes remote proxies', () => {
+    const local = trip3({ metaUpdatedAt: t1, proxies: { m2: 'm1' } })
+    const remote = trip3({ name: '远端', metaUpdatedAt: t2, proxies: { m3: 'm1' } })
+    const { merged } = mergeTrips(local, remote, [], NOW)
+    expect(merged.proxies).toEqual({ m3: 'm1' })
+    expect(merged.name).toBe('远端')
+  })
+
+  it('same proxies → idempotent (changed=false)', () => {
+    const same = trip3({ proxies: { m2: 'm1' } })
+    const { merged, changed } = mergeTrips(same, same, [], NOW)
+    expect(merged.proxies).toEqual({ m2: 'm1' })
+    expect(changed).toBe(false)
+  })
+
+  it('proxies difference alone triggers changed (canonicalTrip includes proxies)', () => {
+    const local = trip3({ metaUpdatedAt: t2, proxies: { m2: 'm1' } })
+    const remote = trip3({ metaUpdatedAt: t1 })
+    expect(canonicalTrip(local)).not.toBe(canonicalTrip(remote))
+    const same = trip3({ proxies: { m2: 'm1' } })
+    expect(canonicalTrip(same)).toBe(canonicalTrip(same))
+  })
+})
