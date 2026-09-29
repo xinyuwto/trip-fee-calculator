@@ -46,6 +46,25 @@ function saveSyncState(state) {
   }
 }
 
+// 净化代付配置：两遍处理保证确定性——
+// 第一遍丢弃自代与不存在的付款人；第二遍丢弃付款人仍被代付的条目（链式）
+function sanitizeProxies(proxies, members) {
+  const memberIds = new Set(members.map(m => m.id))
+  if (!proxies || typeof proxies !== 'object') return {}
+  const kept = {}
+  for (const [proxiedId, payerId] of Object.entries(proxies)) {
+    if (payerId === proxiedId) continue
+    if (!memberIds.has(payerId)) continue
+    kept[proxiedId] = payerId
+  }
+  const out = {}
+  for (const [proxiedId, payerId] of Object.entries(kept)) {
+    if (kept[payerId] !== undefined) continue
+    out[proxiedId] = payerId
+  }
+  return out
+}
+
 function migrateTripData(data) {
   const d = { ...data }
   if (!Array.isArray(d.deletedIds)) d.deletedIds = []
@@ -56,6 +75,7 @@ function migrateTripData(data) {
       updatedAt: typeof e.updatedAt === 'string' ? e.updatedAt : (e.createdAt || new Date(0).toISOString())
     }))
   }
+  d.proxies = sanitizeProxies(d.proxies, Array.isArray(d.members) ? d.members : [])
   return d
 }
 
@@ -109,6 +129,7 @@ export function useTripStore() {
       members,
       expenses: [],
       deletedIds: [],
+      proxies: {},
       createdAt: new Date().toISOString(),
       metaUpdatedAt: new Date().toISOString()
     }
@@ -153,6 +174,22 @@ export function useTripStore() {
     clearSyncState()
   }
 
+  function setProxy(proxiedId, payerId) {
+    if (!trip.value) return { success: false, error: '无旅行数据' }
+    if (!trip.value.proxies) trip.value.proxies = {}
+    if (payerId === null) {
+      delete trip.value.proxies[proxiedId]
+    } else {
+      if (payerId === proxiedId) return { success: false, error: '不能代付自己' }
+      if (trip.value.proxies[payerId]) return { success: false, error: '该成员已被代付，不能作为付款人' }
+      const payer = trip.value.members.find(m => m.id === payerId)
+      if (!payer) return { success: false, error: '付款人不存在' }
+      trip.value.proxies[proxiedId] = payerId
+    }
+    trip.value.metaUpdatedAt = new Date().toISOString()
+    return { success: true }
+  }
+
   function setSyncState(partial) {
     sync.value = { ...sync.value, ...partial }
     saveSyncState(sync.value)
@@ -192,6 +229,6 @@ export function useTripStore() {
     }
   }
 
-  singleton = { trip, toast, sync, initTrip, addExpense, updateExpense, removeExpense, resetTrip, setSyncState, clearSyncState, exportData, importData }
+  singleton = { trip, toast, sync, initTrip, addExpense, updateExpense, removeExpense, resetTrip, setProxy, setSyncState, clearSyncState, exportData, importData }
   return singleton
 }
